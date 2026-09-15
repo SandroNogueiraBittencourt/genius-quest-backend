@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:18
+    container_name: genius-quest-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-geniusquest}
+      POSTGRES_USER: ${POSTGRES_USER:-geniusquest}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Defina POSTGRES_PASSWORD no arquivo .env}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - genius_quest_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-geniusquest} -d ${POSTGRES_DB:-geniusquest}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  genius_quest_postgres_data:
