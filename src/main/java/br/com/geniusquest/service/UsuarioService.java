@@ -2,6 +2,7 @@ package br.com.geniusquest.service;
 
 import br.com.geniusquest.dto.usuario.UsuarioCadastroDTO;
 import br.com.geniusquest.dto.usuario.UsuarioResponseDTO;
+import br.com.geniusquest.dto.usuario.UsuarioAtualizacaoDTO;
 import br.com.geniusquest.entity.Usuario;
 import br.com.geniusquest.exception.EmailJaCadastradoException;
 import br.com.geniusquest.mapper.UsuarioMapper;
@@ -55,6 +56,37 @@ public class UsuarioService {
         Usuario usuarioSalvo = repository.save(usuario);
 
         return mapper.toResponse(usuarioSalvo);
+    }
+
+    @Transactional
+    public UsuarioResponseDTO atualizar(
+            UUID id,
+            UsuarioAtualizacaoDTO dto) {
+
+        Usuario usuario = repository.findById(id)
+                .orElseThrow(UsuarioNaoEncontradoException::new);
+
+        if (dto.nome() != null) {
+            usuario.setNome(
+                    dto.nome().trim());
+        }
+
+        if (dto.email() != null) {
+
+            String novoEmail = dto.email()
+                    .trim()
+                    .toLowerCase();
+
+            repository.findByEmailIgnoreCase(novoEmail)
+                    .filter(usuarioExistente -> !usuarioExistente.getId().equals(id))
+                    .ifPresent(usuarioExistente -> {
+                        throw new EmailJaCadastradoException();
+                    });
+
+            usuario.setEmail(novoEmail);
+        }
+
+        return mapper.toResponse(usuario);
     }
 
     @Transactional(readOnly = true)
