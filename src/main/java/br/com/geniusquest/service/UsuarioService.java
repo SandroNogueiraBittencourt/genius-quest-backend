@@ -11,6 +11,11 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import br.com.geniusquest.exception.UsuarioNaoEncontradoException;
+
+import java.util.List;
+import java.util.UUID;
+
 @Service
 public class UsuarioService {
 
@@ -45,11 +50,28 @@ public class UsuarioService {
         usuario.setEmail(email);
 
         usuario.setSenha(
-                passwordEncoder.encode(dto.senha())
-        );
+                passwordEncoder.encode(dto.senha()));
 
         Usuario usuarioSalvo = repository.save(usuario);
 
         return mapper.toResponse(usuarioSalvo);
+    }
+
+    @Transactional(readOnly = true)
+    public List<UsuarioResponseDTO> listar() {
+
+        return repository.findAll()
+                .stream()
+                .map(mapper::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public UsuarioResponseDTO buscarPorId(UUID id) {
+
+        Usuario usuario = repository.findById(id)
+                .orElseThrow(UsuarioNaoEncontradoException::new);
+
+        return mapper.toResponse(usuario);
     }
 }
