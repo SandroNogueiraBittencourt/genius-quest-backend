@@ -2,6 +2,8 @@ package br.com.geniusquest.controller;
 
 import br.com.geniusquest.dto.usuario.UsuarioCadastroDTO;
 import br.com.geniusquest.dto.usuario.UsuarioResponseDTO;
+import br.com.geniusquest.dto.usuario.UsuarioAtualizacaoDTO;
+
 import br.com.geniusquest.service.UsuarioService;
 
 import io.swagger.v3.oas.annotations.Operation;
@@ -12,6 +14,9 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestBody;
 
 import java.net.URI;
 
@@ -57,6 +62,22 @@ public class UsuarioController {
 
 		return ResponseEntity.ok(
 				service.listar());
+	}
+
+	@Operation(summary = "Atualizar dados de um usuário")
+	@ApiResponses({
+			@ApiResponse(responseCode = "200", description = "Usuário atualizado com sucesso"),
+			@ApiResponse(responseCode = "400", description = "Dados inválidos"),
+			@ApiResponse(responseCode = "404", description = "Usuário não encontrado"),
+			@ApiResponse(responseCode = "409", description = "E-mail já cadastrado")
+	})
+	@PatchMapping("/{id}")
+	public ResponseEntity<UsuarioResponseDTO> atualizar(
+			@PathVariable UUID id,
+			@Valid @RequestBody UsuarioAtualizacaoDTO dto) {
+
+		return ResponseEntity.ok(
+				service.atualizar(id, dto));
 	}
 
 	@Operation(summary = "Buscar usuário por ID")
