@@ -1,5 +1,6 @@
 package br.com.geniusquest.security;
 
+import org.springframework.security.config.Customizer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -7,8 +8,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -18,15 +21,23 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 public class SecurityConfig {
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http) throws Exception {
 
         http
                 .csrf(csrf -> csrf.disable())
 
                 .cors(Customizer.withDefaults())
 
+                .sessionManagement(session ->
+                        session.sessionCreationPolicy(
+                                SessionCreationPolicy.STATELESS
+                        )
+                )
+
                 .authorizeHttpRequests(auth -> auth
 
+                        // Endpoints públicos
                         .requestMatchers(
                                 "/api/health",
                                 "/swagger-ui/**",
@@ -34,12 +45,21 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).permitAll()
 
+                        // Cadastro de usuário
                         .requestMatchers(
                                 HttpMethod.POST,
                                 "/api/usuarios"
                         ).permitAll()
 
-                        .anyRequest().authenticated()
+                        // Login
+                        .requestMatchers(
+                                HttpMethod.POST,
+                                "/api/auth/login"
+                        ).permitAll()
+
+                        // Demais endpoints exigem autenticação
+                        .anyRequest()
+                        .authenticated()
                 );
 
         return http.build();
@@ -50,10 +70,13 @@ public class SecurityConfig {
             @Value("${app.cors.allowed-origins:http://localhost:5173}")
             String allowedOrigins) {
 
-        CorsConfiguration configuration = new CorsConfiguration();
+        CorsConfiguration configuration =
+                new CorsConfiguration();
 
         configuration.setAllowedOrigins(
-                Arrays.stream(allowedOrigins.split(","))
+                Arrays.stream(
+                                allowedOrigins.split(",")
+                        )
                         .map(String::trim)
                         .filter(origin -> !origin.isBlank())
                         .toList()
@@ -89,5 +112,13 @@ public class SecurityConfig {
         );
 
         return source;
+    }
+
+    @Bean
+    public AuthenticationManager authenticationManager(
+            AuthenticationConfiguration configuration)
+            throws Exception {
+
+        return configuration.getAuthenticationManager();
     }
 }
