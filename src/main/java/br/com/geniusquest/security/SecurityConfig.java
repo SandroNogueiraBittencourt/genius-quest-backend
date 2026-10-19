@@ -18,6 +18,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 @Configuration
 public class SecurityConfig {
 
@@ -58,6 +60,34 @@ public class SecurityConfig {
                                                 // Demais endpoints exigem autenticação
                                                 .anyRequest()
                                                 .authenticated())
+
+                                .exceptionHandling(exception -> exception
+
+                                                .authenticationEntryPoint((request, response, authException) -> {
+                                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                                        response.setContentType("application/json");
+                                                        response.setCharacterEncoding("UTF-8");
+
+                                                        response.getWriter().write("""
+                                                                        {
+                                                                          "status": 401,
+                                                                          "erro": "Não autenticado"
+                                                                        }
+                                                                        """);
+                                                })
+
+                                                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                                                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                                                        response.setContentType("application/json");
+                                                        response.setCharacterEncoding("UTF-8");
+
+                                                        response.getWriter().write("""
+                                                                        {
+                                                                          "status": 403,
+                                                                          "erro": "Acesso negado"
+                                                                        }
+                                                                        """);
+                                                }))
 
                                 .addFilterBefore(
                                                 jwtAuthenticationFilter,
