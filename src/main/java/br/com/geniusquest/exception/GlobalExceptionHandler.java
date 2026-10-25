@@ -125,4 +125,25 @@ public class GlobalExceptionHandler {
                                 .body(erro);
 
         }
+
+        @ExceptionHandler(CategoriaInvalidaException.class)
+        public ResponseEntity<ErroRespostaDTO> tratarCategoriaInvalida(
+                        CategoriaInvalidaException exception,
+                        HttpServletRequest request) {
+
+                HttpStatus status = HttpStatus.BAD_REQUEST;
+
+                ErroRespostaDTO erro = new ErroRespostaDTO(
+                                Instant.now(),
+                                status.value(),
+                                status.getReasonPhrase(),
+                                exception.getMessage(),
+                                request.getRequestURI(),
+                                null);
+
+                return ResponseEntity
+                                .status(status)
+                                .body(erro);
+        }
+
 }
