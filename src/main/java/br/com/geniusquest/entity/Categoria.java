@@ -1,10 +1,13 @@
 package br.com.geniusquest.entity;
 
+
 import java.time.Instant;
 import java.util.UUID;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Id;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
@@ -17,34 +20,34 @@ public class Categoria {
     @Column(nullable = false, updatable = false)
     private UUID id;
 
-    @Column(nullable = false, length = 80)
+    @Column(length = 80)
     private String nome;
 
     @Column(length = 255)
     private String descricao;
 
+    @Enumerated (EnumType.STRING)
     @Column(nullable = false)
-    private Boolean ativo;
+    private StatusCategoria status;
 
-    @Column(updatable = false, name = "criado_em")
+    @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm;
 
-    @Column(name = "atualizado_em")
+    @Column(name = "atualizado_em", nullable = false)
     private Instant atualizadoEm;
+
+    public Categoria() {
+    }
 
     @PrePersist
     public void prePersist() {
         if (id == null) {
             id = UUID.randomUUID();
-
         }
-
-        if (ativo == null) {
-            ativo = true;
+        if (status == null) {
+            status = StatusCategoria.PENDENTE;
         }
-
         Instant agora = Instant.now();
-
         criadoEm = agora;
         atualizadoEm = agora;
     }
@@ -54,14 +57,11 @@ public class Categoria {
         atualizadoEm = Instant.now();
     }
 
-    public Categoria() {
-    }
-
-    public Categoria(UUID id, String nome, String descricao, Boolean ativo, Instant criadoEm, Instant atualizadoEm) {
+    public Categoria(UUID id, String nome, String descricao, StatusCategoria status, Instant criadoEm, Instant atualizadoEm) {
         this.id = id;
         this.nome = nome;
         this.descricao = descricao;
-        this.ativo = ativo;
+        this.status = status;
         this.criadoEm = criadoEm;
         this.atualizadoEm = atualizadoEm;
     }
@@ -90,12 +90,12 @@ public class Categoria {
         this.descricao = descricao;
     }
 
-    public Boolean getAtivo() {
-        return ativo;
+    public StatusCategoria getStatus() {
+        return status;
     }
 
-    public void setAtivo(Boolean ativo) {
-        this.ativo = ativo;
+    public void setStatus(StatusCategoria status) {
+        this.status = status;
     }
 
     public Instant getCriadoEm() {
@@ -114,4 +114,6 @@ public class Categoria {
         this.atualizadoEm = atualizadoEm;
     }
 
+    
+    
 }
