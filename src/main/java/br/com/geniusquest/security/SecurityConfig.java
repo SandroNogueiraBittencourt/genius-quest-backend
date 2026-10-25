@@ -1,5 +1,6 @@
 package br.com.geniusquest.security;
 
+import org.springframework.security.config.Customizer;
 import java.util.Arrays;
 import java.util.List;
 
@@ -7,87 +8,151 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
-import org.springframework.security.config.Customizer;
+import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.http.HttpServletResponse;
+
 @Configuration
 public class SecurityConfig {
 
-    @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+        @Bean
+        SecurityFilterChain securityFilterChain(
+                        HttpSecurity http) throws Exception {
 
-        http
-                .csrf(csrf -> csrf.disable())
+                http
+                                .csrf(csrf -> csrf.disable())
 
-                .cors(Customizer.withDefaults())
+                                .cors(Customizer.withDefaults())
 
-                .authorizeHttpRequests(auth -> auth
+                                .sessionManagement(session -> session.sessionCreationPolicy(
+                                                SessionCreationPolicy.STATELESS))
 
-                        .requestMatchers(
-                                "/api/health",
-                                "/swagger-ui/**",
-                                "/swagger-ui.html",
-                                "/v3/api-docs/**"
-                        ).permitAll()
+                                .authorizeHttpRequests(auth -> auth
 
-                        .requestMatchers(
-                                HttpMethod.POST,
-                                "/api/usuarios"
-                        ).permitAll()
+                                                // Endpoints públicos
+                                                .requestMatchers(
+                                                                "/api/health",
+                                                                "/swagger-ui/**",
+                                                                "/swagger-ui.html",
+                                                                "/v3/api-docs/**")
+                                                .permitAll()
 
-                        .anyRequest().authenticated()
-                );
+                                                // Cadastro de usuário
+                                                .requestMatchers(
+                                                                HttpMethod.POST,
+                                                                "/api/usuarios")
+                                                .permitAll()
 
-        return http.build();
-    }
+                                                // Login
+                                                .requestMatchers(
+                                                                HttpMethod.POST,
+                                                                "/api/auth/login")
+                                                .permitAll()
 
-    @Bean
-    CorsConfigurationSource corsConfigurationSource(
-            @Value("${app.cors.allowed-origins:http://localhost:5173}")
-            String allowedOrigins) {
+                                                .requestMatchers(
+                                                                HttpMethod.GET,
+                                                                "/api/usuarios")
+                                                .hasRole("ADMIN")
 
-        CorsConfiguration configuration = new CorsConfiguration();
+                                                // Demais endpoints exigem autenticação
+                                                .anyRequest()
+                                                .authenticated())
 
-        configuration.setAllowedOrigins(
-                Arrays.stream(allowedOrigins.split(","))
-                        .map(String::trim)
-                        .filter(origin -> !origin.isBlank())
-                        .toList()
-        );
+                                .exceptionHandling(exception -> exception
 
-        configuration.setAllowedMethods(
-                List.of(
-                        "GET",
-                        "POST",
-                        "PUT",
-                        "PATCH",
-                        "DELETE",
-                        "OPTIONS"
-                )
-        );
+                                                .authenticationEntryPoint((request, response, authException) -> {
+                                                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                                        response.setContentType("application/json");
+                                                        response.setCharacterEncoding("UTF-8");
 
-        configuration.setAllowedHeaders(
-                List.of(
-                        "Authorization",
-                        "Content-Type",
-                        "Accept"
-                )
-        );
+                                                        response.getWriter().write("""
+                                                                        {
+                                                                          "status": 401,
+                                                                          "erro": "Não autenticado"
+                                                                        }
+                                                                        """);
+                                                })
 
-        configuration.setAllowCredentials(true);
+                                                .accessDeniedHandler((request, response, accessDeniedException) -> {
+                                                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                                                        response.setContentType("application/json");
+                                                        response.setCharacterEncoding("UTF-8");
 
-        UrlBasedCorsConfigurationSource source =
-                new UrlBasedCorsConfigurationSource();
+                                                        response.getWriter().write("""
+                                                                        {
+                                                                          "status": 403,
+                                                                          "erro": "Acesso negado"
+                                                                        }
+                                                                        """);
+                                                }))
 
-        source.registerCorsConfiguration(
-                "/**",
-                configuration
-        );
+                                .addFilterBefore(
+                                                jwtAuthenticationFilter,
+                                                UsernamePasswordAuthenticationFilter.class);
 
-        return source;
-    }
+                return http.build();
+        }
+
+        @Bean
+        CorsConfigurationSource corsConfigurationSource(
+                        @Value("${app.cors.allowed-origins:http://localhost:5173}") String allowedOrigins) {
+
+                CorsConfiguration configuration = new CorsConfiguration();
+
+                configuration.setAllowedOrigins(
+                                Arrays.stream(
+                                                allowedOrigins.split(","))
+                                                .map(String::trim)
+                                                .filter(origin -> !origin.isBlank())
+                                                .toList());
+
+                configuration.setAllowedMethods(
+                                List.of(
+                                                "GET",
+                                                "POST",
+                                                "PUT",
+                                                "PATCH",
+                                                "DELETE",
+                                                "OPTIONS"));
+
+                configuration.setAllowedHeaders(
+                                List.of(
+                                                "Authorization",
+                                                "Content-Type",
+                                                "Accept"));
+
+                configuration.setAllowCredentials(true);
+
+                UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+
+                source.registerCorsConfiguration(
+                                "/**",
+                                configuration);
+
+                return source;
+        }
+
+        @Bean
+        public AuthenticationManager authenticationManager(
+                        AuthenticationConfiguration configuration)
+                        throws Exception {
+
+                return configuration.getAuthenticationManager();
+        }
+
+        private final JwtAuthenticationFilter jwtAuthenticationFilter;
+
+        public SecurityConfig(
+                        JwtAuthenticationFilter jwtAuthenticationFilter) {
+
+                this.jwtAuthenticationFilter = jwtAuthenticationFilter;
+        }
 }
