@@ -6,7 +6,9 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import br.com.geniusquest.dto.categoria.CategoriaDTO;
+import br.com.geniusquest.dto.categoria.CategoriaAtualizacaoDTO;
+import br.com.geniusquest.dto.categoria.CategoriaCadastroDTO;
+import br.com.geniusquest.dto.categoria.CategoriaResponseDTO;
 import br.com.geniusquest.entity.Categoria;
 import br.com.geniusquest.entity.StatusCategoria;
 import br.com.geniusquest.exception.CategoriaJaCadastradaException;
@@ -14,18 +16,23 @@ import br.com.geniusquest.exception.CategoriaNaoEncontradaException;
 import br.com.geniusquest.mapper.CategoriaMapper;
 import br.com.geniusquest.repository.CategoriaRepository;
 
-@Service 
+@Service
 public class CategoriaService {
+
     private final CategoriaRepository repository;
     private final CategoriaMapper mapper;
 
-    public CategoriaService(CategoriaRepository repository, CategoriaMapper mapper) {
+    public CategoriaService(
+            CategoriaRepository repository,
+            CategoriaMapper mapper) {
+
         this.repository = repository;
         this.mapper = mapper;
     }
 
     @Transactional
-    public CategoriaDTO cadastrar(CategoriaDTO dto) {
+    public CategoriaResponseDTO cadastrar(CategoriaCadastroDTO dto) {
+
         String nome = dto.nome().trim();
 
         if (repository.existsByNomeIgnoreCase(nome)) {
@@ -33,64 +40,81 @@ public class CategoriaService {
         }
 
         Categoria categoria = mapper.toEntity(dto);
-        categoria.setNome(nome);
 
         Categoria categoriaSalva = repository.save(categoria);
 
-        return mapper.toDTO(categoriaSalva);
+        return mapper.toResponse(categoriaSalva);
     }
 
-    @Transactional (readOnly = true)
-    public List<CategoriaDTO> listar() {
+    @Transactional(readOnly = true)
+    public List<CategoriaResponseDTO> listar() {
+
         return repository.findAll()
                 .stream()
-                .map(mapper::toDTO)
-                .toList();
-    }
-    @Transactional(readOnly = true)
-    public List<CategoriaDTO> listarAprovadas() {
-        return repository.findByStatusOrderByNomeAsc(StatusCategoria.APROVADA)
-                .stream()
-                .map(mapper::toDTO)
+                .map(mapper::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<CategoriaDTO> listarPendentes() {
-        return repository.findByStatusOrderByNomeAsc(StatusCategoria.PENDENTE)
+    public List<CategoriaResponseDTO> listarAprovadas() {
+
+        return repository
+                .findByStatusOrderByNomeAsc(StatusCategoria.APROVADA)
                 .stream()
-                .map(mapper::toDTO)
+                .map(mapper::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public List<CategoriaDTO> listarRemovidas() {
-        return repository.findByStatusOrderByNomeAsc(StatusCategoria.REMOVIDA)
+    public List<CategoriaResponseDTO> listarPendentes() {
+
+        return repository
+                .findByStatusOrderByNomeAsc(StatusCategoria.PENDENTE)
                 .stream()
-                .map(mapper::toDTO)
+                .map(mapper::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public CategoriaDTO buscarPorId(UUID id) {
+    public List<CategoriaResponseDTO> listarRemovidas() {
+
+        return repository
+                .findByStatusOrderByNomeAsc(StatusCategoria.REMOVIDA)
+                .stream()
+                .map(mapper::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CategoriaResponseDTO buscarPorId(UUID id) {
+
         Categoria categoria = repository.findById(id)
                 .orElseThrow(CategoriaNaoEncontradaException::new);
 
-        return mapper.toDTO(categoria);
+        return mapper.toResponse(categoria);
     }
 
     @Transactional
-    public CategoriaDTO atualizar(UUID id, CategoriaDTO dto) {
+    public CategoriaResponseDTO atualizar(
+            UUID id,
+            CategoriaAtualizacaoDTO dto) {
+
         Categoria categoria = repository.findById(id)
                 .orElseThrow(CategoriaNaoEncontradaException::new);
 
         if (dto.nome() != null) {
+
             String novoNome = dto.nome().trim();
 
-            boolean mudouDeNome = !novoNome.equalsIgnoreCase(categoria.getNome());
-            if (mudouDeNome && repository.existsByNomeIgnoreCase(novoNome)) {
+            boolean mudouDeNome =
+                    !novoNome.equalsIgnoreCase(categoria.getNome());
+
+            if (mudouDeNome
+                    && repository.existsByNomeIgnoreCase(novoNome)) {
+
                 throw new CategoriaJaCadastradaException();
             }
+
             categoria.setNome(novoNome);
         }
 
@@ -98,11 +122,28 @@ public class CategoriaService {
             categoria.setDescricao(dto.descricao().trim());
         }
 
-        if (dto.status() != null) {
-            categoria.setStatus(dto.status());
-        }
-
-        return mapper.toDTO(categoria);
+        return mapper.toResponse(categoria);
     }
 
+    @Transactional
+    public CategoriaResponseDTO aprovar(UUID id) {
+
+        Categoria categoria = repository.findById(id)
+                .orElseThrow(CategoriaNaoEncontradaException::new);
+
+        categoria.setStatus(StatusCategoria.APROVADA);
+
+        return mapper.toResponse(categoria);
+    }
+
+    @Transactional
+    public CategoriaResponseDTO remover(UUID id) {
+
+        Categoria categoria = repository.findById(id)
+                .orElseThrow(CategoriaNaoEncontradaException::new);
+
+        categoria.setStatus(StatusCategoria.REMOVIDA);
+
+        return mapper.toResponse(categoria);
+    }
 }

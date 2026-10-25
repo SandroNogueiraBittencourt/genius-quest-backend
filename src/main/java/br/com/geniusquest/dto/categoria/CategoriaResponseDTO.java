@@ -1,11 +1,11 @@
 package br.com.geniusquest.dto.categoria;
 
+import br.com.geniusquest.entity.StatusCategoria;
+
 import java.time.Instant;
 import java.util.UUID;
 
-import br.com.geniusquest.entity.StatusCategoria;
-
-public record CategoriaDTO(
+public record CategoriaResponseDTO(
         UUID id,
         String nome,
         String descricao,
@@ -13,5 +13,4 @@ public record CategoriaDTO(
         Instant criadoEm,
         Instant atualizadoEm
 ) {
-
 }
