@@ -58,6 +58,17 @@ public class CategoriaRepositoryTest {
     }
 
     @Test
+    void naoDeveSalvarNomeDuplicadoIgnorandoMaiusculasEMinusculas() {
+
+        criar("Tecnologia", StatusCategoria.APROVADA);
+
+        assertThrows(
+            DataIntegrityViolationException.class,
+            () -> criar("tecnologia", StatusCategoria.PENDENTE)
+        );
+    }
+    
+    @Test
     void naoDeveSalvarNomeDuplicado() {
         criar("Tecnologia", StatusCategoria.APROVADA);
 
