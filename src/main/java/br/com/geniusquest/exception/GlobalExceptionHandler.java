@@ -17,77 +17,112 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    @ExceptionHandler(EmailJaCadastradoException.class)
-    public ResponseEntity<ErroRespostaDTO> tratarEmailJaCadastrado(
-            EmailJaCadastradoException exception,
-            HttpServletRequest request) {
+        @ExceptionHandler(EmailJaCadastradoException.class)
+        public ResponseEntity<ErroRespostaDTO> tratarEmailJaCadastrado(
+                        EmailJaCadastradoException exception,
+                        HttpServletRequest request) {
 
-        HttpStatus status = HttpStatus.CONFLICT;
+                HttpStatus status = HttpStatus.CONFLICT;
 
-        ErroRespostaDTO erro = new ErroRespostaDTO(
-                Instant.now(),
-                status.value(),
-                status.getReasonPhrase(),
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
+                ErroRespostaDTO erro = new ErroRespostaDTO(
+                                Instant.now(),
+                                status.value(),
+                                status.getReasonPhrase(),
+                                exception.getMessage(),
+                                request.getRequestURI(),
+                                null);
 
-        return ResponseEntity
-                .status(status)
-                .body(erro);
-    }
+                return ResponseEntity
+                                .status(status)
+                                .body(erro);
+        }
 
-    @ExceptionHandler(UsuarioNaoEncontradoException.class)
-    public ResponseEntity<ErroRespostaDTO> tratarUsuarioNaoEncontrado(
-            UsuarioNaoEncontradoException exception,
-            HttpServletRequest request) {
+        @ExceptionHandler(UsuarioNaoEncontradoException.class)
+        public ResponseEntity<ErroRespostaDTO> tratarUsuarioNaoEncontrado(
+                        UsuarioNaoEncontradoException exception,
+                        HttpServletRequest request) {
 
-        HttpStatus status = HttpStatus.NOT_FOUND;
+                HttpStatus status = HttpStatus.NOT_FOUND;
 
-        ErroRespostaDTO erro = new ErroRespostaDTO(
-                Instant.now(),
-                status.value(),
-                status.getReasonPhrase(),
-                exception.getMessage(),
-                request.getRequestURI(),
-                null
-        );
+                ErroRespostaDTO erro = new ErroRespostaDTO(
+                                Instant.now(),
+                                status.value(),
+                                status.getReasonPhrase(),
+                                exception.getMessage(),
+                                request.getRequestURI(),
+                                null);
 
-        return ResponseEntity
-                .status(status)
-                .body(erro);
-    }
+                return ResponseEntity
+                                .status(status)
+                                .body(erro);
+        }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<ErroRespostaDTO> tratarErroValidacao(
-            MethodArgumentNotValidException exception,
-            HttpServletRequest request) {
+        @ExceptionHandler(MethodArgumentNotValidException.class)
+        public ResponseEntity<ErroRespostaDTO> tratarErroValidacao(
+                        MethodArgumentNotValidException exception,
+                        HttpServletRequest request) {
 
-        HttpStatus status = HttpStatus.BAD_REQUEST;
+                HttpStatus status = HttpStatus.BAD_REQUEST;
 
-        Map<String, String> campos = new LinkedHashMap<>();
+                Map<String, String> campos = new LinkedHashMap<>();
 
-        exception.getBindingResult()
-                .getFieldErrors()
-                .forEach(fieldError ->
-                        campos.putIfAbsent(
-                                fieldError.getField(),
-                                fieldError.getDefaultMessage()
-                        )
-                );
+                exception.getBindingResult()
+                                .getFieldErrors()
+                                .forEach(fieldError -> campos.putIfAbsent(
+                                                fieldError.getField(),
+                                                fieldError.getDefaultMessage()));
 
-        ErroRespostaDTO erro = new ErroRespostaDTO(
-                Instant.now(),
-                status.value(),
-                status.getReasonPhrase(),
-                "Existem campos inválidos na requisição",
-                request.getRequestURI(),
-                campos
-        );
+                ErroRespostaDTO erro = new ErroRespostaDTO(
+                                Instant.now(),
+                                status.value(),
+                                status.getReasonPhrase(),
+                                "Existem campos inválidos na requisição",
+                                request.getRequestURI(),
+                                campos);
 
-        return ResponseEntity
-                .status(status)
-                .body(erro);
-    }
+                return ResponseEntity
+                                .status(status)
+                                .body(erro);
+        }
+
+        @ExceptionHandler(CategoriaNaoEncontradaException.class)
+        public ResponseEntity<ErroRespostaDTO> tratarCategoriaNaoEncontrada(
+                        CategoriaNaoEncontradaException exception,
+                        HttpServletRequest request) {
+
+                HttpStatus status = HttpStatus.NOT_FOUND;
+
+                ErroRespostaDTO erro = new ErroRespostaDTO(
+                                Instant.now(),
+                                status.value(),
+                                status.getReasonPhrase(),
+                                exception.getMessage(),
+                                request.getRequestURI(),
+                                null);
+
+                return ResponseEntity
+                                .status(status)
+                                .body(erro);
+        }
+
+        @ExceptionHandler(CategoriaJaCadastradaException.class)
+        public ResponseEntity<ErroRespostaDTO> tratarCategoriaJaCadastrada(
+                        CategoriaJaCadastradaException exception,
+                        HttpServletRequest request) {
+
+                HttpStatus status = HttpStatus.CONFLICT;
+
+                ErroRespostaDTO erro = new ErroRespostaDTO(
+                                Instant.now(),
+                                status.value(),
+                                status.getReasonPhrase(),
+                                exception.getMessage(),
+                                request.getRequestURI(),
+                                null);
+
+                return ResponseEntity
+                                .status(status)
+                                .body(erro);
+
+        }
 }

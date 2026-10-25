@@ -2,30 +2,29 @@ package br.com.geniusquest.mapper;
 
 import org.springframework.stereotype.Component;
 
-import br.com.geniusquest.dto.categoria.CategoriaCadastroDTO;
-import br.com.geniusquest.dto.categoria.CategoriaResponseDTO;
+import br.com.geniusquest.dto.categoria.CategoriaDTO;
 import br.com.geniusquest.entity.Categoria;
 
-@Component 
+@Component
 public class CategoriaMapper {
-    public Categoria toEntity(CategoriaCadastroDTO dto) {
 
+    public CategoriaDTO toDTO(Categoria categoria) {
+        return new CategoriaDTO(
+                categoria.getId(),
+                categoria.getNome(),
+                categoria.getDescricao(),
+                categoria.getStatus(),
+                categoria.getCriadoEm(),
+                categoria.getAtualizadoEm());
+    }
+
+    public Categoria toEntity(CategoriaDTO dto) {
         Categoria categoria = new Categoria();
 
         categoria.setNome(dto.nome());
         categoria.setDescricao(dto.descricao());
+
         return categoria;
     }
 
-    public CategoriaResponseDTO toResponse(Categoria categoria) {
-
-        return new CategoriaResponseDTO(
-                categoria.getId(),
-                categoria.getNome(),
-                categoria.getDescricao(),
-                categoria.getAtivo(),
-                categoria.getCriadoEm(),
-                categoria.getAtualizadoEm()
-        );
-    }
 }
