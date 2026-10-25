@@ -61,7 +61,25 @@ public class SecurityConfig {
                                                                 HttpMethod.GET,
                                                                 "/api/usuarios")
                                                 .hasRole("ADMIN")
+						
+						// Categorias - operações administrativas
+						.requestMatchers(
+       							 HttpMethod.GET,
+        						"/api/categorias",
+        						"/api/categorias/pendentes",
+        						"/api/categorias/removidas")
+						.hasRole("ADMIN")
 
+						.requestMatchers(
+        						HttpMethod.PATCH,
+        						"/api/categorias/*")
+						.hasRole("ADMIN")
+
+						.requestMatchers(
+        						HttpMethod.PATCH,
+        						"/api/categorias/*/aprovar",
+        						"/api/categorias/*/remover")
+						.hasRole("ADMIN")	
                                                 // Demais endpoints exigem autenticação
                                                 .anyRequest()
                                                 .authenticated())
