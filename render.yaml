@@ -1,0 +1,55 @@
+# Blueprint Render do Genius Quest Backend (branch develop).
+# Banco free e apenas para demonstracao: expira apos 30 dias.
+databases:
+  - name: genius-quest-db
+    databaseName: geniusquest
+    user: geniusquest
+    plan: free
+    region: oregon
+    postgresMajorVersion: "18"
+
+services:
+  - type: web
+    name: genius-quest-api
+    runtime: docker
+    repo: https://github.com/SandroNogueiraBittencourt/genius-quest-backend
+    branch: develop
+    plan: free
+    region: oregon
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeployTrigger: off
+    envVars:
+      - key: PORT
+        value: "8080"
+      - key: DB_HOST
+        fromDatabase:
+          name: genius-quest-db
+          property: host
+      - key: DB_PORT
+        fromDatabase:
+          name: genius-quest-db
+          property: port
+      - key: DB_NAME
+        fromDatabase:
+          name: genius-quest-db
+          property: database
+      - key: DB_USER
+        fromDatabase:
+          name: genius-quest-db
+          property: user
+      - key: DB_PASSWORD
+        fromDatabase:
+          name: genius-quest-db
+          property: password
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRATION_MS
+        value: "3600000"
+      # Informe a origem HTTPS exata do frontend (sem barra no final).
+      - key: APP_CORS_ALLOWED_ORIGINS
+        sync: false
+      - key: SPRING_DOCKER_COMPOSE_ENABLED
+        value: "false"
+      - key: JAVA_TOOL_OPTIONS
+        value: "-XX:MaxRAMPercentage=75.0"
