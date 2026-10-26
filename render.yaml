@@ -42,8 +42,9 @@ services:
         fromDatabase:
           name: genius-quest-db
           property: password
+      # JWT_SECRET deve ser Base64 (openssl rand -base64 48).
       - key: JWT_SECRET
-        generateValue: true
+        sync: false
       - key: JWT_EXPIRATION_MS
         value: "3600000"
       # Informe a origem HTTPS exata do frontend (sem barra no final).
