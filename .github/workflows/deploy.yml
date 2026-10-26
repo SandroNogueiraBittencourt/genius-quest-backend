@@ -41,6 +41,8 @@ jobs:
       - name: Verificar imagem Docker
         run: docker build -t genius-quest-api:ci .
   deploy:
+    # Habilitar apos configurar o Render e o segredo RENDER_DEPLOY_HOOK_URL.
+    if: vars.ENABLE_RENDER_DEPLOY == 'true'
     needs: verify
     runs-on: ubuntu-latest
     environment: production
