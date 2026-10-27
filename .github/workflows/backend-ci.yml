@@ -61,5 +61,8 @@ jobs:
       - name: Dar permissão ao Maven Wrapper
         run: chmod +x mvnw
 
-      - name: Executar testes
-        run: ./mvnw -B clean test
+      - name: Executar testes e validar pacote
+        run: ./mvnw -B clean verify
+
+      - name: Validar build da imagem Docker
+        run: docker build -t genius-quest-api:ci .
