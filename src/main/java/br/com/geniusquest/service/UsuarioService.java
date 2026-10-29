@@ -8,6 +8,7 @@ import br.com.geniusquest.exception.EmailJaCadastradoException;
 import br.com.geniusquest.mapper.UsuarioMapper;
 import br.com.geniusquest.repository.UsuarioRepository;
 
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,6 +60,7 @@ public class UsuarioService {
     }
 
     @Transactional
+    @PreAuthorize("hasRole('ADMIN') or @usuarioAccessPolicy.isOwner(#p0, authentication)")
     public UsuarioResponseDTO atualizar(
             UUID id,
             UsuarioAtualizacaoDTO dto) {
@@ -90,6 +92,7 @@ public class UsuarioService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
     public List<UsuarioResponseDTO> listar() {
 
         return repository.findAll()
@@ -99,6 +102,7 @@ public class UsuarioService {
     }
 
     @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN') or @usuarioAccessPolicy.isOwner(#p0, authentication)")
     public UsuarioResponseDTO buscarPorId(UUID id) {
 
         Usuario usuario = repository.findById(id)
