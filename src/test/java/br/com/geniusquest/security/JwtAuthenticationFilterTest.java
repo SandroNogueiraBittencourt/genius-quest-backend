@@ -28,6 +28,9 @@ class JwtAuthenticationFilterTest {
     @Mock
     private UsuarioDetailsService usuarioDetailsService;
 
+    @Mock
+    private TokenRevocationService tokenRevocationService;
+
     private JwtAuthenticationFilter filter;
 
     @BeforeEach
@@ -37,7 +40,8 @@ class JwtAuthenticationFilterTest {
 
         filter = new JwtAuthenticationFilter(
                 jwtService,
-                usuarioDetailsService
+                usuarioDetailsService,
+                tokenRevocationService
         );
     }
 
@@ -196,5 +200,18 @@ class JwtAuthenticationFilterTest {
         verifyNoInteractions(
                 usuarioDetailsService
         );
+    }
+    @Test
+    void naoDeveAutenticarQuandoTokenFoiRevogado() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest();
+        request.addHeader("Authorization", "Bearer token-revogado");
+
+        when(jwtService.tokenValido("token-revogado")).thenReturn(true);
+        when(tokenRevocationService.estaRevogado("token-revogado")).thenReturn(true);
+
+        filter.doFilter(request, new MockHttpServletResponse(), new MockFilterChain());
+
+        assertNull(SecurityContextHolder.getContext().getAuthentication());
+        verifyNoInteractions(usuarioDetailsService);
     }
 }
