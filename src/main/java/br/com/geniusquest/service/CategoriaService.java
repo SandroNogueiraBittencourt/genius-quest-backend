@@ -1,8 +1,9 @@
 package br.com.geniusquest.service;
 
-import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,35 +45,26 @@ public class CategoriaService {
     }
 
     @Transactional(readOnly = true)
-    public List<CategoriaDTO> listar() {
-        return repository.findAll()
-                .stream()
-                .map(mapper::toDTO)
-                .toList();
+    public Page<CategoriaDTO> listar(Pageable pageable) {
+        return repository.findAll(pageable).map(mapper::toDTO);
     }
 
     @Transactional(readOnly = true)
-    public List<CategoriaDTO> listarAprovadas() {
-        return repository.findByStatusOrderByNomeAsc(StatusCategoria.APROVADA)
-                .stream()
-                .map(mapper::toDTO)
-                .toList();
+    public Page<CategoriaDTO> listarAprovadas(Pageable pageable) {
+        return repository.findByStatusOrderByNomeAsc(StatusCategoria.APROVADA, pageable)
+            .map(mapper::toDTO);
     }
 
     @Transactional(readOnly = true)
-    public List<CategoriaDTO> listarPendentes() {
-        return repository.findByStatusOrderByNomeAsc(StatusCategoria.PENDENTE)
-                .stream()
-                .map(mapper::toDTO)
-                .toList();
+    public Page<CategoriaDTO> listarPendentes(Pageable pageable) {
+        return repository.findByStatusOrderByNomeAsc(StatusCategoria.PENDENTE, pageable)
+                .map(mapper::toDTO);
     }
 
     @Transactional(readOnly = true)
-    public List<CategoriaDTO> listarRemovidas() {
-        return repository.findByStatusOrderByNomeAsc(StatusCategoria.REMOVIDA)
-                .stream()
-                .map(mapper::toDTO)
-                .toList();
+    public Page<CategoriaDTO> listarRemovidas(Pageable pageable) {
+        return repository.findByStatusOrderByNomeAsc(StatusCategoria.REMOVIDA, pageable)
+                .map(mapper::toDTO);
     }
 
     @Transactional(readOnly = true)

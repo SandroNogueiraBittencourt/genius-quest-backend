@@ -1,9 +1,12 @@
 package br.com.geniusquest.controller;
 
 import java.net.URI;
-import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -19,8 +22,8 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
-@RestController 
-@RequestMapping ("/api/categorias")
+@RestController
+@RequestMapping("/api/categorias")
 public class CategoriaController {
     private final CategoriaService service;
 
@@ -46,29 +49,29 @@ public class CategoriaController {
     @Operation(summary = "Listar todas as categorias")
     @ApiResponse(responseCode = "200", description = "Lista de categorias")
     @GetMapping
-    public ResponseEntity<List<CategoriaDTO>> listar() {
-        return ResponseEntity.ok(service.listar());
+    public PagedModel<CategoriaDTO> listar(@PageableDefault(size = 10, sort = "nome") Pageable pageable) {
+        return new PagedModel<>(service.listar(pageable));
     }
 
     @Operation(summary = "Listar categorias aprovadas")
     @ApiResponse(responseCode = "200", description = "Lista de categorias aprovadas")
     @GetMapping("/aprovadas")
-    public ResponseEntity<List<CategoriaDTO>> listarAprovadas() {
-        return ResponseEntity.ok(service.listarAprovadas());
+    public PagedModel<CategoriaDTO> listarAprovadas(@PageableDefault(size = 10, sort = "nome") Pageable pageable) {
+        return new PagedModel<>(service.listarAprovadas(pageable));
     }
 
     @Operation(summary = "Listar categorias pendentes de moderação")
     @ApiResponse(responseCode = "200", description = "Lista de categorias pendentes")
     @GetMapping("/pendentes")
-    public ResponseEntity<List<CategoriaDTO>> listarPendentes() {
-        return ResponseEntity.ok(service.listarPendentes());
+    public PagedModel<CategoriaDTO> listarPendentes(@PageableDefault(size = 10, sort = "nome") Pageable pageable) {
+        return new PagedModel<>(service.listarPendentes(pageable));
     }
 
     @Operation(summary = "Listar categorias removidas")
     @ApiResponse(responseCode = "200", description = "Lista de categorias removidas")
     @GetMapping("/removidas")
-    public ResponseEntity<List<CategoriaDTO>> listarRemovidas() {
-        return ResponseEntity.ok(service.listarRemovidas());
+    public PagedModel<CategoriaDTO> listarRemovidas(@PageableDefault(size = 10, sort = "nome") Pageable pageable) {
+        return new PagedModel<>(service.listarRemovidas(pageable));
     }
 
     @Operation(summary = "Buscar categoria por ID")

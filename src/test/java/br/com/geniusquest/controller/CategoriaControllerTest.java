@@ -19,6 +19,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -45,6 +49,7 @@ public class CategoriaControllerTest {
     void setUp() {
         mockMvc = MockMvcBuilders
                 .standaloneSetup(controller)
+                .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();
     }
@@ -92,44 +97,47 @@ public class CategoriaControllerTest {
 
     @Test
     void listarDeveRetornar200() throws Exception {
-        when(service.listar()).thenReturn(List.of(
-                dto(UUID.randomUUID(), "Arte", StatusCategoria.APROVADA),
-                dto(UUID.randomUUID(), "História", StatusCategoria.PENDENTE)));
+        Page<CategoriaDTO> pagina = new PageImpl<>(List.of(
+            dto(UUID.randomUUID(), "Arte", StatusCategoria.APROVADA),
+            dto(UUID.randomUUID(), "História", StatusCategoria.PENDENTE)));
+        when(service.listar(any(Pageable.class))).thenReturn(pagina);
 
         mockMvc.perform(get("/api/categorias"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
-                .andExpect(jsonPath("$[0].nome").value("Arte"));
+                .andExpect(jsonPath("$.content.length()").value(2))
+                .andExpect(jsonPath("$.content[0].nome").value("Arte"));
     }
 
     @Test
     void listarAprovadasDeveRetornar200() throws Exception {
-        when(service.listarAprovadas()).thenReturn(List.of(
-                dto(UUID.randomUUID(), "Arte", StatusCategoria.APROVADA)));
-
+        Page<CategoriaDTO> pagina = new PageImpl<>(List.of(
+            dto(UUID.randomUUID(), "Arte", StatusCategoria.APROVADA)));
+        when(service.listarAprovadas(any(Pageable.class))).thenReturn(pagina);
         mockMvc.perform(get("/api/categorias/aprovadas"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].status").value("APROVADA"));
+                .andExpect(jsonPath("$.content[0].status").value("APROVADA"));
     }
 
     @Test
     void listarPendentesDeveRetornar200() throws Exception {
-        when(service.listarPendentes()).thenReturn(List.of(
-                dto(UUID.randomUUID(), "Esportes", StatusCategoria.PENDENTE)));
+        Page<CategoriaDTO> pagina = new PageImpl<>(List.of(
+            dto(UUID.randomUUID(), "Esportes", StatusCategoria.PENDENTE)));
+        when(service.listarPendentes(any(Pageable.class))).thenReturn(pagina);
 
         mockMvc.perform(get("/api/categorias/pendentes"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].status").value("PENDENTE"));
+                .andExpect(jsonPath("$.content[0].status").value("PENDENTE"));
     }
 
     @Test
     void listarRemovidasDeveRetornar200() throws Exception {
-        when(service.listarRemovidas()).thenReturn(List.of(
-                dto(UUID.randomUUID(), "Geografia", StatusCategoria.REMOVIDA)));
+        Page<CategoriaDTO> pagina = new PageImpl<>(List.of(
+            dto(UUID.randomUUID(), "Geografia", StatusCategoria.REMOVIDA)));
+        when(service.listarRemovidas(any(Pageable.class))).thenReturn(pagina);
 
         mockMvc.perform(get("/api/categorias/removidas"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].status").value("REMOVIDA"));
+                .andExpect(jsonPath("$.content[0].status").value("REMOVIDA"));
     }
 
     @Test

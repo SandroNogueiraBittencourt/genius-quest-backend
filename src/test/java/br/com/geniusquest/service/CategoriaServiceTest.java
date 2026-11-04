@@ -19,6 +19,11 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 
 import br.com.geniusquest.dto.categoria.CategoriaDTO;
 import br.com.geniusquest.entity.Categoria;
@@ -91,47 +96,55 @@ public class CategoriaServiceTest {
 
     @Test
     void deveListarCategorias() {
-        when(repository.findAll()).thenReturn(List.of(
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("nome"));
+        when(repository.findAll(pageable)).thenReturn(new PageImpl<>(List.of(
                 criarCategoria(UUID.randomUUID(), "Arte", StatusCategoria.APROVADA),
-                criarCategoria(UUID.randomUUID(), "História", StatusCategoria.PENDENTE)));
+                criarCategoria(UUID.randomUUID(), "História", StatusCategoria.PENDENTE)),
+                pageable, 2));
 
-        List<CategoriaDTO> resposta = service.listar();
+        Page<CategoriaDTO> resposta = service.listar(pageable);
 
-        assertEquals(2, resposta.size());
-        assertEquals("Arte", resposta.get(0).nome());
+        assertEquals(2, resposta.getTotalElements());
+        assertEquals("Arte", resposta.getContent().get(0).nome());
     }
 
     @Test
     void deveListarSomenteCategoriasAprovadas() {
-        when(repository.findByStatusOrderByNomeAsc(StatusCategoria.APROVADA)).thenReturn(List.of(
-                criarCategoria(UUID.randomUUID(), "Arte", StatusCategoria.APROVADA)));
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("nome"));
+        Categoria arte = criarCategoria(UUID.randomUUID(), "Arte", StatusCategoria.APROVADA);
+        when(repository.findByStatusOrderByNomeAsc(StatusCategoria.APROVADA, pageable))
+                .thenReturn(new PageImpl<>(List.of(arte), pageable, 1));
 
-        List<CategoriaDTO> resposta = service.listarAprovadas();
+        Page<CategoriaDTO> resposta = service.listarAprovadas(pageable);
 
-        assertEquals(1, resposta.size());
-        assertEquals(StatusCategoria.APROVADA, resposta.get(0).status());
+        assertEquals(1, resposta.getTotalElements());
+        assertEquals(StatusCategoria.APROVADA, resposta.getContent().get(0).status());
     }
 
     @Test
     void deveListarSomenteCategoriasPendentes() {
-        when(repository.findByStatusOrderByNomeAsc(StatusCategoria.PENDENTE)).thenReturn(List.of(
-                criarCategoria(UUID.randomUUID(), "Esportes", StatusCategoria.PENDENTE)));
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("nome"));
+        Categoria esporte = criarCategoria(UUID.randomUUID(), "Esportes", StatusCategoria.PENDENTE);
+        when(repository.findByStatusOrderByNomeAsc(StatusCategoria.PENDENTE, pageable))
+                .thenReturn(new PageImpl<>(List.of(esporte), pageable, 1));
 
-        List<CategoriaDTO> resposta = service.listarPendentes();
+        Page<CategoriaDTO> resposta = service.listarPendentes(pageable);
 
-        assertEquals(1, resposta.size());
-        assertEquals(StatusCategoria.PENDENTE, resposta.get(0).status());
+        assertEquals(1, resposta.getTotalElements());
+        assertEquals(StatusCategoria.PENDENTE, resposta.getContent().get(0).status());
     }
 
     @Test
     void deveListarSomenteCategoriasRemovidas() {
-        when(repository.findByStatusOrderByNomeAsc(StatusCategoria.REMOVIDA)).thenReturn(List.of(
-                criarCategoria(UUID.randomUUID(), "Geografia", StatusCategoria.REMOVIDA)));
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("nome"));
+        Categoria geografia = criarCategoria(UUID.randomUUID(), "Geografia", StatusCategoria.REMOVIDA);
+        when(repository.findByStatusOrderByNomeAsc(StatusCategoria.REMOVIDA, pageable))
+                .thenReturn(new PageImpl<>(List.of(geografia), pageable, 1));
 
-        List<CategoriaDTO> resposta = service.listarRemovidas();
+        Page<CategoriaDTO> resposta = service.listarRemovidas(pageable);
 
-        assertEquals(1, resposta.size());
-        assertEquals(StatusCategoria.REMOVIDA, resposta.get(0).status());
+        assertEquals(1, resposta.getTotalElements());
+        assertEquals(StatusCategoria.REMOVIDA, resposta.getContent().get(0).status());
     }
 
     @Test
