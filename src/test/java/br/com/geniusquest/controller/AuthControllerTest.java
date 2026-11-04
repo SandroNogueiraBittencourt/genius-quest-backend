@@ -2,6 +2,7 @@ package br.com.geniusquest.controller;
 
 import br.com.geniusquest.dto.auth.LoginResponseDTO;
 import br.com.geniusquest.service.AuthService;
+import br.com.geniusquest.security.TokenRevocationService;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -16,6 +17,7 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -26,13 +28,16 @@ class AuthControllerTest {
     @Mock
     private AuthService authService;
 
+    @Mock
+    private TokenRevocationService tokenRevocationService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
 
         AuthController controller =
-                new AuthController(authService);
+                new AuthController(authService, tokenRevocationService);
 
         mockMvc = MockMvcBuilders
                 .standaloneSetup(controller)
@@ -78,5 +83,13 @@ class AuthControllerTest {
                         jsonPath("$.expiraEm")
                                 .value(3600)
                 );
+    }
+    @Test
+    void deveRevogarTokenAoEfetuarLogout() throws Exception {
+        mockMvc.perform(post("/api/auth/logout")
+                        .header("Authorization", "Bearer token-de-teste"))
+                .andExpect(status().isNoContent());
+
+        verify(tokenRevocationService).revogar("token-de-teste");
     }
 }

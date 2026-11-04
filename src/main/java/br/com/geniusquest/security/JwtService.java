@@ -15,6 +15,7 @@ import javax.crypto.SecretKey;
 
 import java.time.Instant;
 import java.util.Date;
+import java.util.UUID;
 
 @Service
 public class JwtService {
@@ -43,6 +44,7 @@ public class JwtService {
 
         return Jwts.builder()
                 .subject(usuario.getEmail())
+                .id(UUID.randomUUID().toString())
                 .claim(
                         "usuarioId",
                         usuario.getId().toString()
@@ -83,6 +85,10 @@ public class JwtService {
                         "usuarioId",
                         String.class
                 );
+    }
+
+    public Instant extrairExpiracao(String token) {
+        return extrairClaims(token).getExpiration().toInstant();
     }
 
     public boolean tokenValido(String token) {
