@@ -125,4 +125,13 @@ public class GlobalExceptionHandler {
                                 .body(erro);
 
         }
+        @ExceptionHandler(RegraTemasException.class)
+        public ResponseEntity<ErroRespostaDTO> tratarRegrasTemas(
+                        RegraTemasException exception, HttpServletRequest request) {
+                HttpStatus status = exception.getStatus();
+                return ResponseEntity.status(status).body(new ErroRespostaDTO(
+                                Instant.now(), status.value(), status.getReasonPhrase(),
+                                exception.getMessage(), request.getRequestURI(), null));
+        }
+
 }
