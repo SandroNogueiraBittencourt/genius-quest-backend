@@ -31,6 +31,9 @@ public class CicloVotacao {
     @Column(name = "encerrado_em")
     private Instant encerradoEm;
 
+    @Column(name = "ranking_reconstruido", nullable = false)
+    private boolean rankingReconstruido;
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm;
 
@@ -56,4 +59,6 @@ public class CicloVotacao {
     public Instant getEncerradoEm() { return encerradoEm; }
     public void setEncerradoEm(Instant encerradoEm) { this.encerradoEm = encerradoEm; }
     public Instant getCriadoEm() { return criadoEm; }
+    public boolean isRankingReconstruido() { return rankingReconstruido; }
+    public void setRankingReconstruido(boolean rankingReconstruido) { this.rankingReconstruido = rankingReconstruido; }
 }
