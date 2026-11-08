@@ -7,8 +7,8 @@ Implementação inicial a partir dos requisitos RF009–RF015 e regras RN006–R
 
 1. Uma categoria deve estar **APROVADA** antes de receber sugestões de temas.
 2. Qualquer usuário autenticado pode sugerir um tema; o backend identifica o autor pelo usuário da sessão e grava como **PENDENTE**.
-3. Um ADMIN consulta \`/api/temas/moderacao\`, aprova/suspende/remove logicamente o tema.
-4. Um ADMIN configura um ciclo de votação com \`inicioEm\` e \`fimEm\` em ISO 8601 UTC. Ciclos **ABERTO** não podem ter períodos sobrepostos. Um ciclo só está disponível aos jogadores dentro do intervalo configurado.
+3. Um ADMIN consulta `/api/temas/moderacao`, aprova/suspende/remove logicamente o tema.
+4. Um ADMIN configura um ciclo de votação com `inicioEm` e `fimEm` em ISO 8601 UTC. Ciclos **ABERTO** não podem ter períodos sobrepostos. Um ciclo só está disponível aos jogadores dentro do intervalo configurado.
 5. Um usuário elegível pode votar **uma vez em cada tema, por ciclo**, enquanto tema e categoria permanecem aprovados.
 6. Ranking do ciclo ordena por número de votos válidos. Em empate, considera tema mais antigo e UUID, de maneira determinística. Como o voto é único por usuário/tema/ciclo, a quantidade de votantes distintos é igual à quantidade de votos.
 7. ADMIN encerra um ciclo e persiste o tema vencedor, se houver ao menos um voto elegível.
@@ -33,21 +33,21 @@ Implementação inicial a partir dos requisitos RF009–RF015 e regras RN006–R
 
 ### Exemplo de cadastro de tema
 
-\`\`\`json
+```json
 {"categoriaId":"UUID_DA_CATEGORIA_APROVADA","titulo":"Xadrez brasileiro","descricao":"História e estratégia"}
-\`\`\`
+```
 
 ### Exemplo de ciclo (ADMIN)
 
-\`\`\`json
+```json
 {"nome":"Semana 1","inicioEm":"2026-11-09T00:00:00Z","fimEm":"2026-11-16T00:00:00Z"}
-\`\`\`
+```
 
 ## Integridade
 
-- \`temas\` tem chave estrangeira para \`usuarios\` e \`categorias\`.
-- \`votos_tema\`: constraint \`UNIQUE (usuario_id, tema_id, ciclo_id)\` contra votos duplicados sob concorrência.
-- \`ciclos_votacao\`: exclusion constraint GiST impede sobreposição de intervalos de ciclos abertos.
+- `temas` tem chave estrangeira para `usuarios` e `categorias`.
+- `votos_tema`: constraint `UNIQUE (usuario_id, tema_id, ciclo_id)` contra votos duplicados sob concorrência.
+- `ciclos_votacao`: exclusion constraint GiST impede sobreposição de intervalos de ciclos abertos.
 - A linha de ciclo é bloqueada durante voto e encerramento para prevenir voto após fechamento.
 - A API devolve 401 sem autenticação, 403 em moderação não autorizada, 404 para recursos ausentes e 409 para conflitos.
 
