@@ -29,7 +29,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 class TemaVotacaoIntegrationTest {
 
     @Autowired MockMvc mvc;
-    @Autowired ObjectMapper json;
+    private final ObjectMapper json = new ObjectMapper().findAndRegisterModules();
     @Autowired UsuarioRepository usuarios;
     @Autowired CategoriaRepository categorias;
     @Autowired TemaRepository temas;
