@@ -5,24 +5,32 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+import java.util.UUID;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.test.context.ActiveProfiles;
+import org.springframework.transaction.annotation.Transactional;
 
 import br.com.geniusquest.entity.Categoria;
 import br.com.geniusquest.entity.StatusCategoria;
-import jakarta.transaction.Transactional;
 
 @SpringBootTest
-@ActiveProfiles ("test")
-@Transactional 
-public class CategoriaRepositoryTest {
-    
+@ActiveProfiles("test")
+@Transactional
+class CategoriaRepositoryTest {
+
     @Autowired
     private CategoriaRepository categoriaRepository;
+
+    // Evita colisões com categorias já cadastradas em bancos locais persistentes.
+    private String nomeUnico(String nome) {
+        return "Teste-" + UUID.randomUUID().toString().substring(0, 8) + "-" + nome;
+    }
 
     private Categoria criar(String nome, StatusCategoria status) {
         Categoria categoria = new Categoria();
@@ -32,9 +40,9 @@ public class CategoriaRepositoryTest {
         return categoriaRepository.saveAndFlush(categoria);
     }
 
-    @Test 
+    @Test
     void deveSalvarCategoria() {
-        Categoria salva = criar("Tecnologia", null);
+        Categoria salva = criar(nomeUnico("Tecnologia"), null);
 
         assertNotNull(salva.getId());
         assertEquals(StatusCategoria.PENDENTE, salva.getStatus());
@@ -44,35 +52,43 @@ public class CategoriaRepositoryTest {
 
     @Test
     void deveListarSomenteCategoriasComOStatusPedidoEmOrdemAlfabetica() {
-        criar("Ciência", StatusCategoria.APROVADA);
-        criar("Esportes", StatusCategoria.PENDENTE);
-        criar("Arte", StatusCategoria.APROVADA);
-        criar("Geografia", StatusCategoria.REMOVIDA);
+        String prefixo = "Teste-" + UUID.randomUUID().toString().substring(0, 8) + "-";
+        Categoria ciencia = criar(prefixo + "Ciencia", StatusCategoria.APROVADA);
+        criar(prefixo + "Esportes", StatusCategoria.PENDENTE);
+        Categoria arte = criar(prefixo + "Arte", StatusCategoria.APROVADA);
+        criar(prefixo + "Geografia", StatusCategoria.REMOVIDA);
 
-        List<Categoria> aprovadas =
-                categoriaRepository.findByStatusOrderByNomeAsc(StatusCategoria.APROVADA);
+        Set<UUID> idsDesteTeste = Set.of(arte.getId(), ciencia.getId());
+        List<Categoria> aprovadasDesteTeste = categoriaRepository
+                .findByStatusOrderByNomeAsc(StatusCategoria.APROVADA)
+                .stream()
+                .filter(categoria -> idsDesteTeste.contains(categoria.getId()))
+                .toList();
 
-        assertEquals(2, aprovadas.size());
-        assertEquals("Arte", aprovadas.get(0).getNome());
-        assertEquals("Ciência", aprovadas.get(1).getNome());
+        assertEquals(2, aprovadasDesteTeste.size());
+        assertEquals(prefixo + "Arte", aprovadasDesteTeste.get(0).getNome());
+        assertEquals(prefixo + "Ciencia", aprovadasDesteTeste.get(1).getNome());
     }
 
     @Test
     void naoDeveSalvarNomeDuplicadoIgnorandoMaiusculasEMinusculas() {
-
-        criar("Tecnologia", StatusCategoria.APROVADA);
+        String nome = nomeUnico("Tecnologia");
+        criar(nome, StatusCategoria.APROVADA);
 
         assertThrows(
-            DataIntegrityViolationException.class,
-            () -> criar("tecnologia", StatusCategoria.PENDENTE)
+                DataIntegrityViolationException.class,
+                () -> criar(nome.toLowerCase(Locale.ROOT), StatusCategoria.PENDENTE)
         );
     }
-    
+
     @Test
     void naoDeveSalvarNomeDuplicado() {
-        criar("Tecnologia", StatusCategoria.APROVADA);
+        String nome = nomeUnico("Tecnologia");
+        criar(nome, StatusCategoria.APROVADA);
 
-        assertThrows(DataIntegrityViolationException.class,
-                () -> criar("Tecnologia", StatusCategoria.PENDENTE));
+        assertThrows(
+                DataIntegrityViolationException.class,
+                () -> criar(nome, StatusCategoria.PENDENTE)
+        );
     }
 }
