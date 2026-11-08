@@ -82,6 +82,17 @@ public class SecurityConfig {
         						"/api/categorias/*/aprovar",
         						"/api/categorias/*/remover")
 						.hasRole("ADMIN")	
+                                                // Temas: a consulta de moderação e as mudanças de status exigem ADMIN.
+                                                .requestMatchers(HttpMethod.GET, "/api/temas/moderacao").hasRole("ADMIN")
+                                                .requestMatchers(HttpMethod.PATCH,
+                                                                "/api/temas/*", "/api/temas/*/aprovar",
+                                                                "/api/temas/*/suspender", "/api/temas/*/remover")
+                                                .hasRole("ADMIN")
+                                                // Ciclos: somente ADMIN pode criar ou encerrar.
+                                                .requestMatchers(HttpMethod.POST, "/api/ciclos-votacao").hasRole("ADMIN")
+                                                .requestMatchers(HttpMethod.PATCH,
+                                                                "/api/ciclos-votacao/*/encerrar").hasRole("ADMIN")
+
                                                 // Demais endpoints exigem autenticação
                                                 .anyRequest()
                                                 .authenticated())
