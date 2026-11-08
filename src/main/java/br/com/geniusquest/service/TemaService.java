@@ -60,6 +60,7 @@ public class TemaService {
     @Transactional(readOnly = true)
     public List<TemaResponseDTO> listarAprovados() {
         return temas.findByStatusOrderByCriadoEmAsc(StatusTema.APROVADO).stream()
+                .filter(tema -> tema.getCategoria().getStatus() == StatusCategoria.APROVADA)
                 .map(this::response).toList();
     }
 
