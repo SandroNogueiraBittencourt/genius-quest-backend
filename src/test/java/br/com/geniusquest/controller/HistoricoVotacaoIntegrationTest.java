@@ -72,6 +72,16 @@ class HistoricoVotacaoIntegrationTest {
         return ciclos.saveAndFlush(ciclo);
     }
 
+    private CicloVotacao cicloFechado(String nome, Instant encerradoEm) {
+        CicloVotacao ciclo = new CicloVotacao();
+        ciclo.setNome(nome);
+        ciclo.setInicioEm(encerradoEm.minusSeconds(7200));
+        ciclo.setFimEm(encerradoEm.minusSeconds(3600));
+        ciclo.setStatus(StatusCicloVotacao.ENCERRADO);
+        ciclo.setEncerradoEm(encerradoEm);
+        return ciclos.saveAndFlush(ciclo);
+    }
+
     @Test
     void historicoExigeAutenticacao() throws Exception {
         mvc.perform(get("/api/ciclos-votacao/historico"))
@@ -82,15 +92,10 @@ class HistoricoVotacaoIntegrationTest {
     @WithMockUser(username = "jogador@geniusquest.test", roles = "USUARIO")
     void mostraSomenteEncerradosOrdenadosEPaginados() throws Exception {
         novoCiclo("Ainda aberto");
-        CicloVotacao antigo = novoCiclo("Mais antigo");
-        antigo.setStatus(StatusCicloVotacao.ENCERRADO);
-        antigo.setEncerradoEm(Instant.parse("2100-01-01T10:00:00Z"));
-        ciclos.saveAndFlush(antigo);
-
-        CicloVotacao recente = novoCiclo("Mais recente");
-        recente.setStatus(StatusCicloVotacao.ENCERRADO);
-        recente.setEncerradoEm(Instant.parse("2100-01-02T10:00:00Z"));
-        ciclos.saveAndFlush(recente);
+        CicloVotacao antigo = cicloFechado(
+                "Mais antigo", Instant.parse("2100-01-01T10:00:00Z"));
+        CicloVotacao recente = cicloFechado(
+                "Mais recente", Instant.parse("2100-01-02T10:00:00Z"));
 
         mvc.perform(get("/api/ciclos-votacao/historico")
                 .param("page", "0").param("size", "1"))
