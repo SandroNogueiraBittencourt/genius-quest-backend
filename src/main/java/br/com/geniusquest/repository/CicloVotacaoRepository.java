@@ -7,9 +7,13 @@ import org.springframework.data.jpa.repository.Lock;
 import jakarta.persistence.LockModeType;
 import java.time.Instant;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.UUID;
 
 public interface CicloVotacaoRepository extends JpaRepository<CicloVotacao, UUID> {
+    Page<CicloVotacao> findByStatus(StatusCicloVotacao status, Pageable pageable);
+
     Optional<CicloVotacao> findFirstByStatusAndInicioEmLessThanEqualAndFimEmGreaterThanOrderByInicioEmAsc(
             StatusCicloVotacao status, Instant agoraInicio, Instant agoraFim);
     @Lock(LockModeType.PESSIMISTIC_WRITE)

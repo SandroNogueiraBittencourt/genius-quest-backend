@@ -25,6 +25,13 @@ public class VotacaoController {
         return ResponseEntity.created(URI.create("/api/ciclos-votacao/" + ciclo.id())).body(ciclo);
     }
 
+    @GetMapping("/historico")
+    public HistoricoVotacoesDTO historico(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return service.historico(page, size);
+    }
+
     @GetMapping("/atual")
     public CicloResponseDTO atual() {
         return service.cicloAtual();

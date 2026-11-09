@@ -12,6 +12,15 @@ public interface VotoTemaRepository extends JpaRepository<VotoTema, UUID> {
     @Query("select v.tema.id as temaId, count(v) as total from VotoTema v where v.ciclo.id = :cicloId group by v.tema.id")
     List<ContagemTema> contarPorTemaNoCiclo(@Param("cicloId") UUID cicloId);
 
+    @Query("select v.ciclo.id as cicloId, count(v) as total from VotoTema v " +
+            "where v.ciclo.id in :cicloIds group by v.ciclo.id")
+    List<ContagemCiclo> contarPorCiclos(@Param("cicloIds") List<UUID> cicloIds);
+
+    interface ContagemCiclo {
+        UUID getCicloId();
+        Long getTotal();
+    }
+
     interface ContagemTema {
         UUID getTemaId();
         Long getTotal();
