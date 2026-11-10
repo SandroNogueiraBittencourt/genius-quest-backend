@@ -12,8 +12,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
 import jakarta.validation.Valid;
 
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import br.com.geniusquest.web.Paginacao;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -57,12 +59,20 @@ public class UsuarioController {
 	@ApiResponses({
 			@ApiResponse(responseCode = "200", description = "Usuários listados com sucesso")
 	})
-	@GetMapping
+	@GetMapping(params = "!page")
 	public ResponseEntity<List<UsuarioResponseDTO>> listar() {
 
 		return ResponseEntity.ok(
 				service.listar());
 	}
+
+    @Operation(summary = "Listar usuários com paginação")
+    @GetMapping(params = "page")
+    public PagedModel<UsuarioResponseDTO> listarPaginado(
+            @RequestParam int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return new PagedModel<>(service.listar(Paginacao.criar(page, size)));
+    }
 
 	@Operation(summary = "Atualizar dados de um usuário")
 	@ApiResponses({

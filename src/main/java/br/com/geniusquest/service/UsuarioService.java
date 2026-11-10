@@ -8,6 +8,8 @@ import br.com.geniusquest.exception.EmailJaCadastradoException;
 import br.com.geniusquest.mapper.UsuarioMapper;
 import br.com.geniusquest.repository.UsuarioRepository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -99,6 +101,12 @@ public class UsuarioService {
                 .stream()
                 .map(mapper::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
+    public Page<UsuarioResponseDTO> listar(Pageable pageable) {
+        return repository.findAll(pageable).map(mapper::toResponse);
     }
 
     @Transactional(readOnly = true)
