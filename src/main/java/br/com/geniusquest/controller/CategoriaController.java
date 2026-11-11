@@ -11,8 +11,10 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
 import jakarta.validation.Valid;
 
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import br.com.geniusquest.web.Paginacao;
 
 import java.net.URI;
 import java.util.List;
@@ -60,7 +62,7 @@ public class CategoriaController {
     }
 
     @Operation(summary = "Listar todas as categorias")
-    @GetMapping
+    @GetMapping(params = "!page")
     public ResponseEntity<List<CategoriaResponseDTO>> listar() {
 
         return ResponseEntity.ok(
@@ -69,7 +71,7 @@ public class CategoriaController {
     }
 
     @Operation(summary = "Listar categorias aprovadas")
-    @GetMapping("/aprovadas")
+    @GetMapping(value = "/aprovadas", params = "!page")
     public ResponseEntity<List<CategoriaResponseDTO>> listarAprovadas() {
 
         return ResponseEntity.ok(
@@ -78,7 +80,7 @@ public class CategoriaController {
     }
 
     @Operation(summary = "Listar categorias pendentes")
-    @GetMapping("/pendentes")
+    @GetMapping(value = "/pendentes", params = "!page")
     public ResponseEntity<List<CategoriaResponseDTO>> listarPendentes() {
 
         return ResponseEntity.ok(
@@ -87,12 +89,44 @@ public class CategoriaController {
     }
 
     @Operation(summary = "Listar categorias removidas")
-    @GetMapping("/removidas")
+    @GetMapping(value = "/removidas", params = "!page")
     public ResponseEntity<List<CategoriaResponseDTO>> listarRemovidas() {
 
         return ResponseEntity.ok(
                 service.listarRemovidas()
         );
+    }
+
+    @Operation(summary = "Listar todas as categorias com paginação")
+    @GetMapping(params = "page")
+    public PagedModel<CategoriaResponseDTO> listarPaginado(
+            @RequestParam int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return new PagedModel<>(service.listar(Paginacao.criar(page, size)));
+    }
+
+    @Operation(summary = "Listar categorias aprovadas com paginação")
+    @GetMapping(value = "/aprovadas", params = "page")
+    public PagedModel<CategoriaResponseDTO> listarAprovadasPaginado(
+            @RequestParam int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return new PagedModel<>(service.listarAprovadas(Paginacao.criar(page, size)));
+    }
+
+    @Operation(summary = "Listar categorias pendentes com paginação")
+    @GetMapping(value = "/pendentes", params = "page")
+    public PagedModel<CategoriaResponseDTO> listarPendentesPaginado(
+            @RequestParam int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return new PagedModel<>(service.listarPendentes(Paginacao.criar(page, size)));
+    }
+
+    @Operation(summary = "Listar categorias removidas com paginação")
+    @GetMapping(value = "/removidas", params = "page")
+    public PagedModel<CategoriaResponseDTO> listarRemovidasPaginado(
+            @RequestParam int page,
+            @RequestParam(defaultValue = "10") int size) {
+        return new PagedModel<>(service.listarRemovidas(Paginacao.criar(page, size)));
     }
 
     @Operation(summary = "Buscar categoria por ID")

@@ -1,3 +1,4 @@
+
 name: Backend CI
 
 on:
@@ -38,6 +39,10 @@ jobs:
           --health-retries=10
 
     env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5433
+      DB_NAME: geniusquest_test
+      DB_USER: geniusquest
       DB_PASSWORD: geniusquest_ci
 
       SPRING_DOCKER_COMPOSE_ENABLED: false

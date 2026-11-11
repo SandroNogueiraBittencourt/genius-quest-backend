@@ -3,6 +3,8 @@ package br.com.geniusquest.service;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -83,6 +85,29 @@ public class CategoriaService {
                 .stream()
                 .map(mapper::toResponse)
                 .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CategoriaResponseDTO> listar(Pageable pageable) {
+        return repository.findAll(pageable).map(mapper::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CategoriaResponseDTO> listarAprovadas(Pageable pageable) {
+        return repository.findByStatus(StatusCategoria.APROVADA, pageable)
+                .map(mapper::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CategoriaResponseDTO> listarPendentes(Pageable pageable) {
+        return repository.findByStatus(StatusCategoria.PENDENTE, pageable)
+                .map(mapper::toResponse);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CategoriaResponseDTO> listarRemovidas(Pageable pageable) {
+        return repository.findByStatus(StatusCategoria.REMOVIDA, pageable)
+                .map(mapper::toResponse);
     }
 
     @Transactional(readOnly = true)
