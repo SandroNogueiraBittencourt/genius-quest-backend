@@ -92,7 +92,7 @@ public class CuradoriaPerguntaService {
             conteudo = validador.validar(pedido.enunciado(), pedido.alternativas(),
                     pedido.respostaCorretaIndice());
         } catch (IllegalArgumentException ex) {
-            throw erro(HttpStatus.UNPROCESSABLE_ENTITY,
+            throw erro(HttpStatus.UNPROCESSABLE_CONTENT,
                     "Pergunta não passou na validação estrutural.");
         }
         if (!conteudo.enunciadoNormalizado().equals(pergunta.getEnunciadoNormalizado())

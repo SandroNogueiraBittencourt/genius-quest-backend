@@ -40,7 +40,7 @@ public class PerguntasPersistenciaService {
         if (lote == null || lote.perguntas() == null || lote.perguntas().size() != quantidade
                 || quantidade < 1 || quantidade > 10 || lote.modelo() == null
                 || lote.modelo().isBlank() || lote.modelo().length() > 100) {
-            throw new RegraTemasException(HttpStatus.UNPROCESSABLE_ENTITY,
+            throw new RegraTemasException(HttpStatus.UNPROCESSABLE_CONTENT,
                     "Lote de perguntas IA inválido.");
         }
         Tema tema = temaAprovado(temaId); // Revalida estado após chamada HTTP externa.
@@ -48,7 +48,7 @@ public class PerguntasPersistenciaService {
         List<Pergunta> novas = new ArrayList<>();
         for (CandidataGeradaIA candidata : lote.perguntas()) {
             if (candidata == null || candidata.dificuldade() == null) {
-                throw new RegraTemasException(HttpStatus.UNPROCESSABLE_ENTITY,
+                throw new RegraTemasException(HttpStatus.UNPROCESSABLE_CONTENT,
                         "Candidata IA sem dificuldade ou conteúdo.");
             }
             var conteudo = validar(candidata);
@@ -62,7 +62,7 @@ public class PerguntasPersistenciaService {
             if (fonte != null) {
                 fonte = fonte.strip();
                 if (fonte.length() > 500) {
-                    throw new RegraTemasException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    throw new RegraTemasException(HttpStatus.UNPROCESSABLE_CONTENT,
                             "Fonte de referência muito longa.");
                 }
             }
@@ -90,7 +90,7 @@ public class PerguntasPersistenciaService {
             return validador.validar(candidata.enunciado(), candidata.alternativas(),
                     candidata.respostaCorretaIndice());
         } catch (IllegalArgumentException ex) {
-            throw new RegraTemasException(HttpStatus.UNPROCESSABLE_ENTITY,
+            throw new RegraTemasException(HttpStatus.UNPROCESSABLE_CONTENT,
                     "Pergunta gerada não passou na validação estrutural.");
         }
     }

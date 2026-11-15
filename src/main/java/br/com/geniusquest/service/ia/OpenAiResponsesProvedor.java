@@ -130,19 +130,19 @@ public class OpenAiResponsesProvedor implements ProvedorPerguntasIA {
     LoteGeradoIA interpretar(String respostaJson, int quantidade) {
         try {
             JsonNode resposta = json.readTree(respostaJson);
-            if (!"completed".equals(resposta.path("status").asText())) {
+            if (!"completed".equals(resposta.path("status").asString())) {
                 throw new IllegalArgumentException("Resposta incompleta ou recusada.");
             }
             JsonNode saida = resposta.path("output");
             if (!saida.isArray()) throw new IllegalArgumentException("Sem saída do modelo.");
             String texto = null;
             for (JsonNode item : saida) {
-                if (!"message".equals(item.path("type").asText())) continue;
+                if (!"message".equals(item.path("type").asString())) continue;
                 for (JsonNode conteudo : item.path("content")) {
-                    if ("output_text".equals(conteudo.path("type").asText())
-                            && conteudo.path("text").isTextual()) {
+                    if ("output_text".equals(conteudo.path("type").asString())
+                            && conteudo.path("text").isString()) {
                         if (texto != null) throw new IllegalArgumentException("Saída ambígua.");
-                        texto = conteudo.path("text").asText();
+                        texto = conteudo.path("text").asString();
                     }
                 }
             }
@@ -153,26 +153,26 @@ public class OpenAiResponsesProvedor implements ProvedorPerguntasIA {
             }
             List<CandidataGeradaIA> candidatas = new ArrayList<>();
             for (JsonNode item : lista) {
-                if (!item.isObject() || !item.path("enunciado").isTextual()
+                if (!item.isObject() || !item.path("enunciado").isString()
                         || !item.path("alternativas").isArray()
                         || !item.path("respostaCorretaIndice").isIntegralNumber()
-                        || !item.path("dificuldade").isTextual()) {
+                        || !item.path("dificuldade").isString()) {
                     throw new IllegalArgumentException("Campos inesperados na saída IA.");
                 }
                 List<String> alternativas = new ArrayList<>();
                 for (JsonNode alternativa : item.path("alternativas")) {
-                    if (!alternativa.isTextual())
+                    if (!alternativa.isString())
                         throw new IllegalArgumentException("Alternativa inválida.");
-                    alternativas.add(alternativa.asText());
+                    alternativas.add(alternativa.asString());
                 }
                 JsonNode fonte = item.path("fonteReferencia");
-                if (!fonte.isNull() && !fonte.isTextual())
+                if (!fonte.isNull() && !fonte.isString())
                     throw new IllegalArgumentException("Fonte inválida.");
                 candidatas.add(new CandidataGeradaIA(
-                        item.path("enunciado").asText(), alternativas,
+                        item.path("enunciado").asString(), alternativas,
                         item.path("respostaCorretaIndice").asInt(),
-                        DificuldadePergunta.valueOf(item.path("dificuldade").asText()),
-                        fonte.isNull() ? null : fonte.asText()));
+                        DificuldadePergunta.valueOf(item.path("dificuldade").asString()),
+                        fonte.isNull() ? null : fonte.asString()));
             }
             return new LoteGeradoIA(modelo, List.copyOf(candidatas));
         } catch (RuntimeException ex) {
