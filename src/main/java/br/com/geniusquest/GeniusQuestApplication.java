@@ -2,8 +2,10 @@ package br.com.geniusquest;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication
+@EnableAsync
 public class GeniusQuestApplication {
 
     public static void main(String[] args) {
