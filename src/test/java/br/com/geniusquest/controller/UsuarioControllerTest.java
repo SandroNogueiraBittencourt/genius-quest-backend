@@ -16,7 +16,10 @@ import org.junit.jupiter.api.Test;
 
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
-
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableHandlerMethodArgumentResolver;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
@@ -53,6 +56,8 @@ class UsuarioControllerTest {
                                 .standaloneSetup(controller)
                                 .setControllerAdvice(
                                                 new GlobalExceptionHandler())
+                                .setCustomArgumentResolvers(
+                                        new PageableHandlerMethodArgumentResolver())
                                 .build();
 
                 objectMapper = new ObjectMapper();
@@ -375,23 +380,17 @@ class UsuarioControllerTest {
                                 Instant.now(),
                                 Instant.now());
 
-                when(service.listar())
-                                .thenReturn(
-                                                List.of(usuario1, usuario2));
+                Page<UsuarioResponseDTO> pagina = new PageImpl<>(
+                        List.of(usuario1, usuario2));
+                        when(service.listar(any(Pageable.class)))
+                        .thenReturn(pagina);
 
                 mockMvc.perform(
-                                get("/api/usuarios")
-                                                .accept(MediaType.APPLICATION_JSON))
-                                .andExpect(status().isOk())
-                                .andExpect(
-                                                jsonPath("$.length()")
-                                                                .value(2))
-                                .andExpect(
-                                                jsonPath("$[0].nome")
-                                                                .value("Sandro Nogueira"))
-                                .andExpect(
-                                                jsonPath("$[1].nome")
-                                                                .value("Maria Silva"));
+                        get("/api/usuarios")
+                        .accept(MediaType.APPLICATION_JSON))
+                        .andExpect(status().isOk())
+                        .andExpect(jsonPath("$.page.totalElements").value(2))
+                        .andExpect(jsonPath("$.page.totalPages").value(1));
         }
 
         @Test

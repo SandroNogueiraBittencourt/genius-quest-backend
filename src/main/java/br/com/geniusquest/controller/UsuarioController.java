@@ -12,15 +12,14 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
 import jakarta.validation.Valid;
 
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.bind.annotation.PatchMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestBody;
 
 import java.net.URI;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -58,10 +57,9 @@ public class UsuarioController {
 			@ApiResponse(responseCode = "200", description = "Usuários listados com sucesso")
 	})
 	@GetMapping
-	public ResponseEntity<List<UsuarioResponseDTO>> listar() {
+	public PagedModel<UsuarioResponseDTO> listar(@PageableDefault(size = 10, sort = "nome") Pageable pageable) {
 
-		return ResponseEntity.ok(
-				service.listar());
+		return new PagedModel<>(service.listar(pageable));
 	}
 
 	@Operation(summary = "Atualizar dados de um usuário")

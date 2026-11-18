@@ -8,13 +8,14 @@ import br.com.geniusquest.exception.EmailJaCadastradoException;
 import br.com.geniusquest.mapper.UsuarioMapper;
 import br.com.geniusquest.repository.UsuarioRepository;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.geniusquest.exception.UsuarioNaoEncontradoException;
 
-import java.util.List;
 import java.util.UUID;
 
 @Service
@@ -90,12 +91,10 @@ public class UsuarioService {
     }
 
     @Transactional(readOnly = true)
-    public List<UsuarioResponseDTO> listar() {
+    public Page<UsuarioResponseDTO> listar(Pageable pageable) {
 
-        return repository.findAll()
-                .stream()
-                .map(mapper::toResponse)
-                .toList();
+        return repository.findAll(pageable)
+                .map(mapper::toResponse);
     }
 
     @Transactional(readOnly = true)

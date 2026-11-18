@@ -3,7 +3,6 @@ package br.com.geniusquest.controller;
 import java.net.URI;
 import java.util.UUID;
 
-import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.data.web.PagedModel;
