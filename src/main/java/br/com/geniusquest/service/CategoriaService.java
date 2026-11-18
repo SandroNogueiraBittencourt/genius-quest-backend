@@ -1,20 +1,22 @@
 package br.com.geniusquest.service;
 
-import java.util.List;
 import java.util.UUID;
 
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import br.com.geniusquest.dto.categoria.CategoriaDTO;
 import br.com.geniusquest.entity.Categoria;
 import br.com.geniusquest.entity.StatusCategoria;
+import br.com.geniusquest.exception.CategoriaInvalidaException;
 import br.com.geniusquest.exception.CategoriaJaCadastradaException;
 import br.com.geniusquest.exception.CategoriaNaoEncontradaException;
 import br.com.geniusquest.mapper.CategoriaMapper;
 import br.com.geniusquest.repository.CategoriaRepository;
 
-@Service 
+@Service
 public class CategoriaService {
     private final CategoriaRepository repository;
     private final CategoriaMapper mapper;
@@ -26,6 +28,8 @@ public class CategoriaService {
 
     @Transactional
     public CategoriaDTO cadastrar(CategoriaDTO dto) {
+        validarNome(dto.nome());
+        validarDescricao(dto.descricao());
         String nome = dto.nome().trim();
 
         if (repository.existsByNomeIgnoreCase(nome)) {
@@ -40,35 +44,27 @@ public class CategoriaService {
         return mapper.toDTO(categoriaSalva);
     }
 
-    @Transactional (readOnly = true)
-    public List<CategoriaDTO> listar() {
-        return repository.findAll()
-                .stream()
-                .map(mapper::toDTO)
-                .toList();
-    }
     @Transactional(readOnly = true)
-    public List<CategoriaDTO> listarAprovadas() {
-        return repository.findByStatusOrderByNomeAsc(StatusCategoria.APROVADA)
-                .stream()
-                .map(mapper::toDTO)
-                .toList();
+    public Page<CategoriaDTO> listar(Pageable pageable) {
+        return repository.findAll(pageable).map(mapper::toDTO);
     }
 
     @Transactional(readOnly = true)
-    public List<CategoriaDTO> listarPendentes() {
-        return repository.findByStatusOrderByNomeAsc(StatusCategoria.PENDENTE)
-                .stream()
-                .map(mapper::toDTO)
-                .toList();
+    public Page<CategoriaDTO> listarAprovadas(Pageable pageable) {
+        return repository.findByStatusOrderByNomeAsc(StatusCategoria.APROVADA, pageable)
+            .map(mapper::toDTO);
     }
 
     @Transactional(readOnly = true)
-    public List<CategoriaDTO> listarRemovidas() {
-        return repository.findByStatusOrderByNomeAsc(StatusCategoria.REMOVIDA)
-                .stream()
-                .map(mapper::toDTO)
-                .toList();
+    public Page<CategoriaDTO> listarPendentes(Pageable pageable) {
+        return repository.findByStatusOrderByNomeAsc(StatusCategoria.PENDENTE, pageable)
+                .map(mapper::toDTO);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CategoriaDTO> listarRemovidas(Pageable pageable) {
+        return repository.findByStatusOrderByNomeAsc(StatusCategoria.REMOVIDA, pageable)
+                .map(mapper::toDTO);
     }
 
     @Transactional(readOnly = true)
@@ -85,6 +81,7 @@ public class CategoriaService {
                 .orElseThrow(CategoriaNaoEncontradaException::new);
 
         if (dto.nome() != null) {
+            validarNome(dto.nome());
             String novoNome = dto.nome().trim();
 
             boolean mudouDeNome = !novoNome.equalsIgnoreCase(categoria.getNome());
@@ -95,6 +92,7 @@ public class CategoriaService {
         }
 
         if (dto.descricao() != null) {
+            validarDescricao(dto.descricao());
             categoria.setDescricao(dto.descricao().trim());
         }
 
@@ -103,6 +101,22 @@ public class CategoriaService {
         }
 
         return mapper.toDTO(categoria);
+    }
+
+    private void validarNome(String nome) {
+        if (nome == null || nome.isBlank()) {
+            throw new CategoriaInvalidaException("O nome é obrigatório");
+        }
+        int tamanho = nome.trim().length();
+        if (tamanho < 2 || tamanho > 80) {
+            throw new CategoriaInvalidaException("O nome da categoria deve possuir entre 2 e 80 caracteres");
+        }
+    }
+
+    private void validarDescricao(String descricao) {
+        if (descricao != null && descricao.trim().length() > 255) {
+            throw new CategoriaInvalidaException("A descrição da categoria deve possuir no máximo 255 caracteres");
+        }
     }
 
 }

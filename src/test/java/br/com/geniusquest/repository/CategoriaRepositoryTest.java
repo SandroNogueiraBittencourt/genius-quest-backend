@@ -4,12 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 
 import br.com.geniusquest.entity.Categoria;
@@ -49,12 +52,13 @@ public class CategoriaRepositoryTest {
         criar("Arte", StatusCategoria.APROVADA);
         criar("Geografia", StatusCategoria.REMOVIDA);
 
-        List<Categoria> aprovadas =
-                categoriaRepository.findByStatusOrderByNomeAsc(StatusCategoria.APROVADA);
+        Pageable pageable = PageRequest.of(0, 10, Sort.by("nome").ascending());
+        Page<Categoria> aprovadas =
+                categoriaRepository.findByStatusOrderByNomeAsc(StatusCategoria.APROVADA, pageable);
 
-        assertEquals(2, aprovadas.size());
-        assertEquals("Arte", aprovadas.get(0).getNome());
-        assertEquals("Ciência", aprovadas.get(1).getNome());
+        assertEquals(2, aprovadas.getTotalElements());
+        assertEquals("Arte", aprovadas.getContent().get(0).getNome());
+        assertEquals("Ciência", aprovadas.getContent().get(1).getNome());
     }
 
     @Test
