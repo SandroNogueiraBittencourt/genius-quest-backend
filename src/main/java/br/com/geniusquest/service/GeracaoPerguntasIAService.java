@@ -5,9 +5,11 @@ import br.com.geniusquest.service.ia.ProvedorPerguntasIA;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
+import org.springframework.security.access.prepost.PreAuthorize;
 
 /** Aplicação: não exposta por HTTP nesta subetapa. ADMIN será imposto na 2.2.3. */
 @Service
+@PreAuthorize("hasRole('ADMIN')")
 public class GeracaoPerguntasIAService {
     private final ProvedorPerguntasIA provedor;
     private final PerguntasPersistenciaService persistencia;
