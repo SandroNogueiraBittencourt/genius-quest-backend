@@ -1,6 +1,8 @@
 package br.com.geniusquest.security;
 
 import java.io.IOException;
+import br.com.geniusquest.repository.UsuarioRepository;
+import br.com.geniusquest.entity.Usuario;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -20,15 +22,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final UsuarioDetailsService usuarioDetailsService;
     private final TokenRevocationService tokenRevocationService;
+    private final UsuarioRepository usuarioRepository;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
             UsuarioDetailsService usuarioDetailsService,
-            TokenRevocationService tokenRevocationService) {
+            TokenRevocationService tokenRevocationService,
+            UsuarioRepository usuarioRepository) {
 
         this.jwtService = jwtService;
         this.usuarioDetailsService = usuarioDetailsService;
         this.tokenRevocationService = tokenRevocationService;
+        this.usuarioRepository = usuarioRepository;
     }
 
     @Override
@@ -68,7 +73,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                     usuarioDetailsService
                             .loadUserByUsername(email);
 
-            if (usuario.isEnabled()) {
+            Usuario entidade = usuarioRepository.findByEmailIgnoreCase(email).orElse(null);
+            // Uma redefinicao de senha incrementa a versao no banco.
+            // Nenhum JWT antigo e autorizado apos o commit.
+            if (usuario.isEnabled() && entidade != null
+                    && Boolean.TRUE.equals(entidade.getAtivo())
+                    && entidade.getId().toString().equals(jwtService.extrairUsuarioId(token))
+                    && entidade.getVersaoCredenciais()
+                            == jwtService.extrairVersaoCredenciais(token)) {
 
                 UsernamePasswordAuthenticationToken authentication =
                         new UsernamePasswordAuthenticationToken(

@@ -59,6 +59,13 @@ public class SecurityConfig {
                                                                 "/api/auth/login")
                                                 .permitAll()
 
+                                                // Recuperação de senha
+                                                .requestMatchers(
+                                                                HttpMethod.POST,
+                                                                "/api/auth/esqueci-senha",
+                                                                "/api/auth/redefinir-senha")
+                                                .permitAll()
+
                                                 .requestMatchers(
                                                                 HttpMethod.GET,
                                                                 "/api/usuarios")

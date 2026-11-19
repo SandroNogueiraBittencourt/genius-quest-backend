@@ -3,6 +3,13 @@ package br.com.geniusquest.security;
 import br.com.geniusquest.entity.PerfilUsuario;
 import br.com.geniusquest.entity.Usuario;
 import br.com.geniusquest.repository.UsuarioRepository;
+import br.com.geniusquest.repository.TokenRecuperacaoSenhaRepository;
+import br.com.geniusquest.entity.TokenRecuperacaoSenha;
+import br.com.geniusquest.service.RecuperacaoSenhaService;
+import java.time.Instant;
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
+import java.util.HexFormat;
 import com.jayway.jsonpath.JsonPath;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -42,6 +49,15 @@ class JwtAuthorizationIntegrationTest {
 
     @Autowired
     private PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private JwtService jwtService;
+
+    @Autowired
+    private TokenRecuperacaoSenhaRepository tokenRecuperacaoSenhaRepository;
+
+    @Autowired
+    private RecuperacaoSenhaService recuperacaoSenhaService;
 
     @Test
     void deveExigirJwtValidoParaConsultarPerfil() throws Exception {
@@ -127,6 +143,39 @@ class JwtAuthorizationIntegrationTest {
         mockMvc.perform(get("/api/usuarios/{id}", titular.getId())
                         .header(HttpHeaders.AUTHORIZATION, "Bearer " + token))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    void redefinicaoDeSenhaRevogaJwtAntigoEPermiteNovoLogin() throws Exception {
+        Usuario titular = criarUsuario(PerfilUsuario.USUARIO);
+        String jwtAnterior = autenticar(titular);
+        org.junit.jupiter.api.Assertions.assertEquals(0L, jwtService.extrairVersaoCredenciais(jwtAnterior));
+        mockMvc.perform(get("/api/usuarios/{id}", titular.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtAnterior))
+                .andExpect(status().isOk());
+
+        String tokenPuro = "teste-reset-" + UUID.randomUUID();
+        String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                .digest(tokenPuro.getBytes(StandardCharsets.UTF_8)));
+        TokenRecuperacaoSenha recuperacao = new TokenRecuperacaoSenha();
+        recuperacao.setUsuario(titular);
+        recuperacao.setTokenHash(hash);
+        recuperacao.setExpiraEm(Instant.now().plusSeconds(1800));
+        recuperacao.setUsado(false);
+        tokenRecuperacaoSenhaRepository.saveAndFlush(recuperacao);
+
+        recuperacaoSenhaService.redefinir(tokenPuro, "SenhaNovaTeste123!");
+        usuarioRepository.flush();
+
+        mockMvc.perform(get("/api/usuarios/{id}", titular.getId())
+                .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtAnterior))
+                .andExpect(status().isUnauthorized());
+
+        String json = "{\"email\":\"" + titular.getEmail()
+                + "\",\"senha\":\"SenhaNovaTeste123!\"}";
+        mockMvc.perform(post("/api/auth/login")
+                .contentType(MediaType.APPLICATION_JSON).content(json))
+                .andExpect(status().isOk());
     }
 
     private Usuario criarUsuario(PerfilUsuario perfil) {
