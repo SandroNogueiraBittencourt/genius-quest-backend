@@ -1,6 +1,7 @@
 package br.com.geniusquest.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -23,6 +24,7 @@ public class BrevoApiEmailSender {
     private final HttpClient httpClient;
     private final ObjectMapper mapper = new ObjectMapper();
 
+    @Autowired
     public BrevoApiEmailSender(@Value("${app.mail.brevo.api-key:}") String apiKey) {
         this(apiKey, ENDPOINT, HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(5))
