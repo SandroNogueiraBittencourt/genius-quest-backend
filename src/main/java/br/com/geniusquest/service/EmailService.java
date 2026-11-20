@@ -16,9 +16,14 @@ public class EmailService {
     private static final Logger log = LoggerFactory.getLogger(EmailService.class);
 
     private final JavaMailSender mailSender;
+    private final BrevoApiEmailSender brevoApi;
 
-    public EmailService(JavaMailSender mailSender) {
+    @Value("${app.mail.provider:smtp}")
+    private String provedor;
+
+    public EmailService(JavaMailSender mailSender, BrevoApiEmailSender brevoApi) {
         this.mailSender = mailSender;
+        this.brevoApi = brevoApi;
     }
 
     @Value("${app.mail.from:}")
@@ -27,12 +32,6 @@ public class EmailService {
     @Async
     public void enviarLinkRecuperacao(String destinatario, String nome, String link) {
         try {
-            MimeMessage msg = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(msg, "UTF-8");
-            helper.setFrom(remetente, "Genius Quest");
-            helper.setTo(destinatario);
-            helper.setSubject("Genius Quest: recuperação de senha");
-
             String html = """
                     <!DOCTYPE html>
                     <html lang="pt-BR">
@@ -133,11 +132,21 @@ public class EmailService {
                     """
                     .formatted(
                             HtmlUtils.htmlEscape(nome),
-                            HtmlUtils.htmlEscape(link),
                             HtmlUtils.htmlEscape(link));
 
-            helper.setText(html, true);
-            mailSender.send(msg);
+            if ("brevo-api".equalsIgnoreCase(provedor)) {
+                brevoApi.enviar(destinatario, nome, remetente, html);
+            } else if ("smtp".equalsIgnoreCase(provedor)) {
+                MimeMessage msg = mailSender.createMimeMessage();
+                MimeMessageHelper helper = new MimeMessageHelper(msg, "UTF-8");
+                helper.setFrom(remetente, "Genius Quest");
+                helper.setTo(destinatario);
+                helper.setSubject("Genius Quest: recuperação de senha");
+                helper.setText(html, true);
+                mailSender.send(msg);
+            } else {
+                throw new IllegalStateException("MAIL_PROVIDER invalido");
+            }
         } catch (Exception e) {
             log.warn("Falha ao enviar e-mail de recuperação: {}", e.getMessage());
         }
