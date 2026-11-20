@@ -5,6 +5,7 @@ import br.com.geniusquest.dto.categoria.CategoriaCadastroDTO;
 import br.com.geniusquest.dto.categoria.CategoriaResponseDTO;
 import br.com.geniusquest.entity.Categoria;
 import br.com.geniusquest.entity.StatusCategoria;
+import br.com.geniusquest.exception.CategoriaInvalidaException;
 import br.com.geniusquest.exception.CategoriaJaCadastradaException;
 import br.com.geniusquest.exception.CategoriaNaoEncontradaException;
 import br.com.geniusquest.mapper.CategoriaMapper;
@@ -396,5 +397,44 @@ class CategoriaServiceTest {
                 StatusCategoria.REMOVIDA,
                 categoria.getStatus()
         );
+    }
+
+    @Test
+    void naoDeveCadastrarNomeNulo() {
+        assertThrows(CategoriaInvalidaException.class,
+                () -> service.cadastrar(new CategoriaCadastroDTO(null, null)));
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void naoDeveCadastrarNomeDeUmaLetraMesmoComEspacos() {
+        assertThrows(CategoriaInvalidaException.class,
+                () -> service.cadastrar(new CategoriaCadastroDTO(" A ", null)));
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void naoDeveCadastrarDescricaoComMaisDe255Caracteres() {
+        assertThrows(CategoriaInvalidaException.class,
+                () -> service.cadastrar(new CategoriaCadastroDTO("Tecnologia", "x".repeat(256))));
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void naoDeveAtualizarNomeDeUmaLetraMesmoComEspacos() {
+        when(repository.findById(categoriaId)).thenReturn(Optional.of(categoria));
+        assertThrows(CategoriaInvalidaException.class,
+                () -> service.atualizar(categoriaId,
+                        new CategoriaAtualizacaoDTO(" A ", null)));
+        assertEquals("Tecnologia", categoria.getNome());
+    }
+
+    @Test
+    void naoDeveAtualizarDescricaoComMaisDe255Caracteres() {
+        when(repository.findById(categoriaId)).thenReturn(Optional.of(categoria));
+        assertThrows(CategoriaInvalidaException.class,
+                () -> service.atualizar(categoriaId,
+                        new CategoriaAtualizacaoDTO(null, "x".repeat(256))));
+        assertEquals("Categoria de tecnologia", categoria.getDescricao());
     }
 }
