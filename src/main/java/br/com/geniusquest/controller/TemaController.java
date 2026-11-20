@@ -4,7 +4,10 @@ import br.com.geniusquest.dto.tema.*;
 import br.com.geniusquest.entity.StatusTema;
 import br.com.geniusquest.service.TemaService;
 import br.com.geniusquest.service.VotacaoService;
+import br.com.geniusquest.web.Paginacao;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -31,14 +34,28 @@ public class TemaController {
         return ResponseEntity.created(URI.create("/api/temas/" + tema.id())).body(tema);
     }
 
-    @GetMapping
+    @GetMapping(params = "!page")
     public List<TemaResponseDTO> listarAprovados() {
         return temas.listarAprovados();
     }
 
-    @GetMapping("/moderacao")
+    @GetMapping(value = "/moderacao", params = "!page")
     public List<TemaResponseDTO> listarModeracao() {
         return temas.listarModeracao();
+    }
+
+    @GetMapping(params = "page")
+    public PagedModel<TemaResponseDTO> listarAprovadosPaginado(
+            @RequestParam int page, @RequestParam(defaultValue = "10") int size) {
+        return new PagedModel<>(temas.listarAprovados(
+                Paginacao.criar(page, size, Sort.by(Sort.Direction.ASC, "criadoEm", "id"))));
+    }
+
+    @GetMapping(value = "/moderacao", params = "page")
+    public PagedModel<TemaResponseDTO> listarModeracaoPaginado(
+            @RequestParam int page, @RequestParam(defaultValue = "10") int size) {
+        return new PagedModel<>(temas.listarModeracao(
+                Paginacao.criar(page, size, Sort.by(Sort.Direction.ASC, "criadoEm", "id"))));
     }
 
     @GetMapping("/{id}")
