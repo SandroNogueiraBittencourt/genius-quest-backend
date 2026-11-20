@@ -13,6 +13,7 @@ import br.com.geniusquest.dto.categoria.CategoriaCadastroDTO;
 import br.com.geniusquest.dto.categoria.CategoriaResponseDTO;
 import br.com.geniusquest.entity.Categoria;
 import br.com.geniusquest.entity.StatusCategoria;
+import br.com.geniusquest.exception.CategoriaInvalidaException;
 import br.com.geniusquest.exception.CategoriaJaCadastradaException;
 import br.com.geniusquest.exception.CategoriaNaoEncontradaException;
 import br.com.geniusquest.mapper.CategoriaMapper;
@@ -35,6 +36,8 @@ public class CategoriaService {
     @Transactional
     public CategoriaResponseDTO cadastrar(CategoriaCadastroDTO dto) {
 
+        validarNome(dto.nome());
+        validarDescricao(dto.descricao());
         String nome = dto.nome().trim();
 
         if (repository.existsByNomeIgnoreCase(nome)) {
@@ -127,7 +130,10 @@ public class CategoriaService {
         Categoria categoria = repository.findById(id)
                 .orElseThrow(CategoriaNaoEncontradaException::new);
 
+        validarDescricao(dto.descricao());
+
         if (dto.nome() != null) {
+            validarNome(dto.nome());
 
             String novoNome = dto.nome().trim();
 
@@ -170,5 +176,23 @@ public class CategoriaService {
         categoria.setStatus(StatusCategoria.REMOVIDA);
 
         return mapper.toResponse(categoria);
+    }
+
+    private static void validarNome(String nome) {
+        if (nome == null || nome.isBlank()) {
+            throw new CategoriaInvalidaException("O nome da categoria é obrigatório");
+        }
+        int tamanho = nome.trim().length();
+        if (tamanho < 2 || tamanho > 80) {
+            throw new CategoriaInvalidaException(
+                    "O nome da categoria deve possuir entre 2 e 80 caracteres");
+        }
+    }
+
+    private static void validarDescricao(String descricao) {
+        if (descricao != null && descricao.trim().length() > 255) {
+            throw new CategoriaInvalidaException(
+                    "A descrição da categoria deve possuir no máximo 255 caracteres");
+        }
     }
 }
