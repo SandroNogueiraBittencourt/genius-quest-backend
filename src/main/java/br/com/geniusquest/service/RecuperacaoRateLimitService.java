@@ -52,6 +52,21 @@ public class RecuperacaoRateLimitService {
         return tentativasIp <= LIMITE_IP && tentativasEmail <= LIMITE_EMAIL;
     }
 
+    /** Verifica no maximo 20 codigos por IP e cinco por mesmo codigo em 15 minutos.
+     *  Contadores sao compartilhados entre instancias e persistem mesmo apos erro de validacao.
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean permitirValidacao(String codigo, String origem) {
+        String ip = origem == null || origem.isBlank() ? "indefinido" : origem.trim();
+        String normalizado = CodigoRecuperacao.normalizar(codigo);
+        Instant agora = Instant.now();
+        Instant inicio = Instant.ofEpochSecond(
+                (agora.getEpochSecond() / JANELA_SEGUNDOS) * JANELA_SEGUNDOS);
+        int porIp = incrementar(hmac("validacao:ip:" + ip), inicio);
+        int porCodigo = incrementar(hmac("validacao:codigo:" + normalizado), inicio);
+        return porIp <= 20 && porCodigo <= 5;
+    }
+
     private int incrementar(String hash, Instant janela) {
         Integer contador = jdbc.queryForObject("""
                 INSERT INTO limites_recuperacao_senha (chave_hash, janela_inicio, tentativas)

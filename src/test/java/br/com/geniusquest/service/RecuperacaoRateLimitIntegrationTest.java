@@ -31,4 +31,22 @@ class RecuperacaoRateLimitIntegrationTest {
         }
         assertFalse(limiter.permitir(prefixo + "ultimo@example.com", origem));
     }
+    @Test
+    void bloqueiaSextaValidacaoDoMesmoCodigoApesarDeIpsDiferentes() {
+        String codigo = CodigoRecuperacao.gerar();
+        for (int i = 0; i < 5; i++) {
+            assertTrue(limiter.permitirValidacao(codigo, "192.0.2." + i));
+        }
+        assertFalse(limiter.permitirValidacao(codigo, "192.0.2.6"));
+    }
+
+    @Test
+    void bloqueiaVigesimaPrimeiraValidacaoNoMesmoIp() {
+        String origem = "teste-validacao-" + UUID.randomUUID();
+        for (int i = 0; i < 20; i++) {
+            assertTrue(limiter.permitirValidacao(CodigoRecuperacao.gerar(), origem));
+        }
+        assertFalse(limiter.permitirValidacao(CodigoRecuperacao.gerar(), origem));
+    }
+
 }
