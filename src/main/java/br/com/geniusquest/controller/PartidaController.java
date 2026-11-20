@@ -2,7 +2,10 @@ package br.com.geniusquest.controller;
 
 import br.com.geniusquest.dto.partida.*;
 import br.com.geniusquest.service.PartidaService;
+import br.com.geniusquest.web.Paginacao;
 import jakarta.validation.Valid;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PagedModel;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.net.URI;
@@ -27,9 +30,16 @@ public class PartidaController {
                 .body(criada);
     }
 
-    @GetMapping("/minhas")
+    @GetMapping(value = "/minhas", params = "!page")
     public List<PartidaResponseDTO> minhas(Principal principal) {
         return service.minhas(principal.getName());
+    }
+
+    @GetMapping(value = "/minhas", params = "page")
+    public PagedModel<PartidaResponseDTO> minhasPaginado(
+            Principal principal, @RequestParam int page, @RequestParam(defaultValue = "10") int size) {
+        return new PagedModel<>(service.minhas(principal.getName(),
+                Paginacao.criar(page, size, Sort.by(Sort.Direction.DESC, "criadoEm", "id"))));
     }
 
     @GetMapping("/{id}")

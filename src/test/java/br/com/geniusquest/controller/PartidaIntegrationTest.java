@@ -88,6 +88,8 @@ class PartidaIntegrationTest {
         mvc.perform(post("/api/partidas").contentType(MediaType.APPLICATION_JSON)
                 .content(pedido(ciclo.getId()))).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/partidas/minhas")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/partidas/minhas").param("page", "0"))
+                .andExpect(status().isUnauthorized());
         mvc.perform(get("/api/partidas/{id}", UUID.randomUUID()))
                 .andExpect(status().isUnauthorized());
     }
@@ -158,6 +160,37 @@ class PartidaIntegrationTest {
                 .with(user(segundo.getEmail()).roles("USUARIO")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void paginaApenasPartidasDoCriador() throws Exception {
+        for (Usuario criador : new Usuario[] {primeiro, primeiro, segundo}) {
+            mvc.perform(post("/api/partidas")
+                    .with(user(criador.getEmail()).roles("USUARIO"))
+                    .contentType(MediaType.APPLICATION_JSON).content(pedido(ciclo.getId())))
+                    .andExpect(status().isCreated());
+        }
+
+        mvc.perform(get("/api/partidas/minhas").param("page", "1").param("size", "1")
+                .with(user(primeiro.getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.page.number").value(1))
+                .andExpect(jsonPath("$.page.totalElements").value(2))
+                .andExpect(jsonPath("$.page.totalPages").value(2));
+
+        mvc.perform(get("/api/partidas/minhas").param("page", "1").param("size", "1")
+                .with(user(segundo.getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.page.totalElements").value(1));
+    }
+
+    @Test
+    void rejeitaTamanhoDePaginaAcimaDoLimite() throws Exception {
+        mvc.perform(get("/api/partidas/minhas").param("page", "0").param("size", "101")
+                .with(user(primeiro.getEmail()).roles("USUARIO")))
+                .andExpect(status().isBadRequest());
     }
 
     @Test

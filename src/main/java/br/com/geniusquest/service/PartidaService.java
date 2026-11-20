@@ -4,6 +4,8 @@ import br.com.geniusquest.dto.partida.*;
 import br.com.geniusquest.entity.*;
 import br.com.geniusquest.exception.RegraTemasException;
 import br.com.geniusquest.repository.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -58,6 +60,12 @@ public class PartidaService {
         Usuario usuario = usuarioAtivo(email);
         return partidas.findTop20ByCriador_IdOrderByCriadoEmDescIdDesc(usuario.getId())
                 .stream().map(this::resposta).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PartidaResponseDTO> minhas(String email, Pageable pageable) {
+        Usuario usuario = usuarioAtivo(email);
+        return partidas.findByCriador_Id(usuario.getId(), pageable).map(this::resposta);
     }
 
     @Transactional(readOnly = true)
