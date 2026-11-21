@@ -227,4 +227,59 @@ class PerguntaModeracaoIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content(revisaoDuplicada))
                 .andExpect(status().isConflict());
     }
+
+    private String criacaoManual(String enunciado) {
+        return """
+                {"temaId":"%s",
+                 "enunciado":"%s",
+                 "alternativas":["Marte","Vênus","Júpiter","Saturno"],
+                 "respostaCorretaIndice":0,
+                 "dificuldadeInicial":"FACIL",
+                 "fonteReferencia":"Material de revisão para homologação"}
+                """.formatted(pendente.getTema().getId(), enunciado);
+    }
+
+    @Test
+    void somenteAdminPodeCriarCandidataManualPendenteSemExporGabaritoNaCriacao() throws Exception {
+        String body = criacaoManual("Qual planeta é conhecido como planeta vermelho? " + UUID.randomUUID());
+        mvc.perform(post("/api/admin/perguntas")
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isUnauthorized());
+        mvc.perform(post("/api/admin/perguntas")
+                .with(user(comum.getEmail()).roles("USUARIO"))
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isForbidden());
+
+        mvc.perform(post("/api/admin/perguntas")
+                .with(user(admin.getEmail()).roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.id").isNotEmpty())
+                .andExpect(jsonPath("$.respostaCorretaIndice").doesNotExist());
+
+        mvc.perform(get("/api/admin/perguntas?status=PENDENTE&page=0&size=10")
+                .with(user(admin.getEmail()).roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.page.totalElements").value(2))
+                .andExpect(jsonPath("$.content[1].origem").value("MANUAL"))
+                .andExpect(jsonPath("$.content[1].status").value("PENDENTE"));
+    }
+
+    @Test
+    void criacaoManualRejeitaDuplicadaEAlternativasIncompletas() throws Exception {
+        mvc.perform(post("/api/admin/perguntas")
+                .with(user(admin.getEmail()).roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(criacaoManual(pendente.getEnunciado())))
+                .andExpect(status().isConflict());
+
+        String invalida = criacaoManual("Pergunta de teste invalida " + UUID.randomUUID())
+                .replace("\"Marte\",\"Vênus\",\"Júpiter\",\"Saturno\"",
+                        "\"Marte\",\"Vênus\",\"Júpiter\"");
+        mvc.perform(post("/api/admin/perguntas")
+                .with(user(admin.getEmail()).roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON).content(invalida))
+                .andExpect(status().isBadRequest());
+    }
+
 }
