@@ -36,7 +36,7 @@ public class GeracaoIAQuotaService {
                 "SELECT requisicoes, perguntas FROM ia_geracao_cota_diaria WHERE dia_utc = "
                         + HOJE_UTC,
                 (rs, n) -> new Uso(rs.getInt(1), rs.getInt(2)));
-        return hoje.isEmpty() ? new Uso(0, 0) : hoje.getFirst();
+        return hoje.isEmpty() ? new Uso(0, 0) : hoje.get(0);
     }
 
     @Transactional
@@ -52,6 +52,13 @@ public class GeracaoIAQuotaService {
                 "SELECT requisicoes, perguntas FROM ia_geracao_cota_diaria WHERE dia_utc = "
                         + HOJE_UTC + " FOR UPDATE",
                 (rs, n) -> new Uso(rs.getInt(1), rs.getInt(2)));
+        Integer existente = jdbc.queryForObject(
+                "SELECT COUNT(*) FROM ia_geracao_solicitacoes WHERE chave_idempotencia = ?",
+                Integer.class, chave);
+        if (existente != null && existente > 0) {
+            throw new RegraTemasException(HttpStatus.CONFLICT,
+                    "Essa solicitacao ja foi registrada. Verifique a fila antes de solicitar outra.");
+        }
         if (uso == null || uso.requisicoes() >= MAX_REQUISICOES_DIA
                 || uso.perguntas() + quantidade > MAX_PERGUNTAS_DIA) {
             throw new RegraTemasException(HttpStatus.TOO_MANY_REQUESTS,
