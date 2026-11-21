@@ -31,6 +31,19 @@ public class RecuperarSenhaController {
     @PostMapping("/esqueci-senha")
     public ResponseEntity<Map<String, String>> esqueciSenha(
             @Valid @RequestBody EsqueciSeanhaRequest req, HttpServletRequest request) {
+        service.solicitar(req.email(), origem(request));
+        return ResponseEntity.ok(Map.of(
+                "mensagem", "Se o e-mail estiver cadastrado, enviaremos um código de recuperação."));
+    }
+
+    @PostMapping("/redefinir-senha")
+    public ResponseEntity<Void> redefinirSenha(
+            @Valid @RequestBody RedefinirSenhaRequest req, HttpServletRequest request) {
+        service.redefinir(req.token(), req.novaSenha(), origem(request));
+        return ResponseEntity.noContent().build();
+    }
+    /** Nunca confiar em X-Forwarded-For recebido diretamente do cliente. */
+    private String origem(HttpServletRequest request) {
         String origem = request.getRemoteAddr();
         // Nao usar X-Forwarded-For diretamente: o cliente pode inserir valores falsos.
         // O cabecalho CF-Connecting-IP e confiavel APENAS no ingress publico do Render.
@@ -46,14 +59,7 @@ public class RecuperarSenhaController {
                 }
             }
         }
-        service.solicitar(req.email(), origem);
-        return ResponseEntity.ok(Map.of(
-                "mensagem", "Se o e-mail estiver cadastrado, enviaremos um link de recuperação."));
+        return origem;
     }
 
-    @PostMapping("/redefinir-senha")
-    public ResponseEntity<Void> redefinirSenha(@Valid @RequestBody RedefinirSenhaRequest req) {
-        service.redefinir(req.token(), req.novaSenha());
-        return ResponseEntity.noContent().build();
-    }
 }

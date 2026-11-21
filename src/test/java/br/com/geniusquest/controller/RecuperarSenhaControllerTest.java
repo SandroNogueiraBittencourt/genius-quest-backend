@@ -77,7 +77,7 @@ class RecuperarSenhaControllerTest {
                                 """))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.mensagem").value(
-                        "Se o e-mail estiver cadastrado, enviaremos um link de recuperação."));
+                        "Se o e-mail estiver cadastrado, enviaremos um código de recuperação."));
         verify(service).solicitar("teste@example.com", "127.0.0.1");
     }
 
@@ -85,20 +85,20 @@ class RecuperarSenhaControllerTest {
     void deveRetornar204AoRedefinirSenha() throws Exception {
         mvc.perform(post("/api/auth/redefinir-senha").contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"token":"token-valido","novaSenha":"NovaSenha123!"}
+                                {"token":"ABCD2345EFGH6789","novaSenha":"NovaSenha123!"}
                                 """))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
-        verify(service).redefinir("token-valido", "NovaSenha123!");
+        verify(service).redefinir("ABCD2345EFGH6789", "NovaSenha123!", "127.0.0.1");
     }
 
     @Test
     void deveRetornar400ParaTokenInvalido() throws Exception {
         var erro = new TokenRecuperacaoInvalidoException();
-        doThrow(erro).when(service).redefinir("invalido", "NovaSenha123!");
+        doThrow(erro).when(service).redefinir("ABCD2345EFGH6789", "NovaSenha123!", "127.0.0.1");
         mvc.perform(post("/api/auth/redefinir-senha").contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"token":"invalido","novaSenha":"NovaSenha123!"}
+                                {"token":"ABCD2345EFGH6789","novaSenha":"NovaSenha123!"}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))

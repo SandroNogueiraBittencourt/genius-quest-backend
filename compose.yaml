@@ -30,6 +30,8 @@ services:
     environment:
       SPRING_DOCKER_COMPOSE_ENABLED: "false"
       SERVER_PORT: "8080"
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-smtp}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
       MAIL_HOST: ${MAIL_HOST:-smtp-relay.brevo.com}
       MAIL_PORT: ${MAIL_PORT:-2525}
       MAIL_STARTTLS_ENABLE: ${MAIL_STARTTLS_ENABLE:-true}

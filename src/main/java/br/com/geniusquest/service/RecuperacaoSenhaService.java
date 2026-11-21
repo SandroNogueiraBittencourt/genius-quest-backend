@@ -3,10 +3,8 @@ package br.com.geniusquest.service;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.Base64;
 import java.util.HexFormat;
 
 import org.springframework.beans.factory.annotation.Value;
@@ -24,7 +22,6 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 @Service
 public class RecuperacaoSenhaService {
-    private static final SecureRandom RANDOM = new SecureRandom();
     private static final long VALIDADE_MINUTOS = 30;
 
     private final UsuarioRepository usuarioRepository;
@@ -60,17 +57,15 @@ public class RecuperacaoSenhaService {
                 .ifPresent(usuario -> {
                     tokenRepository.invalidarTokensAbertos(usuario.getId());
 
-                    byte[] bytes = new byte[32];
-                    RANDOM.nextBytes(bytes);
-                    String token = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+                    String codigo = CodigoRecuperacao.gerar();
 
                     TokenRecuperacaoSenha t = new TokenRecuperacaoSenha();
                     t.setUsuario(usuario);
-                    t.setTokenHash(hash(token));
+                    t.setTokenHash(hash(codigo));
                     t.setExpiraEm(Instant.now().plus(VALIDADE_MINUTOS, ChronoUnit.MINUTES));
                     tokenRepository.save(t);
 
-                    String link = frontendUrl + "/redefinir-senha?token=" + token;
+                    String pagina = frontendUrl.replaceAll("/+$", "") + "/redefinir-senha";
                     String destino = usuario.getEmail();
                     String nome = usuario.getNome();
                     // Evita enviar links de tokens que nao foram confirmados no banco.
@@ -80,19 +75,25 @@ public class RecuperacaoSenhaService {
                                 new TransactionSynchronization() {
                                     @Override
                                     public void afterCommit() {
-                                        emailService.enviarLinkRecuperacao(destino, nome, link);
+                                        emailService.enviarCodigoRecuperacao(destino, nome, codigo, pagina);
                                     }
                                 });
                     } else {
                         // Somente para invocacoes de testes unitarios sem transacao.
-                        emailService.enviarLinkRecuperacao(destino, nome, link);
+                        emailService.enviarCodigoRecuperacao(destino, nome, codigo, pagina);
                     }
                 });
     }
 
     @Transactional
-    public void redefinir(String token, String novaSenha) {
-        TokenRecuperacaoSenha t = tokenRepository.findByTokenHash(hash(token))
+    public void redefinir(String codigo, String novaSenha, String origem) {
+        // Limite transacional antes de consultar codigo, mesmo quando ele e invalido.
+        if (!rateLimitService.permitirValidacao(codigo, origem)
+                || !CodigoRecuperacao.formatoValido(codigo)) {
+            throw new TokenRecuperacaoInvalidoException();
+        }
+        String normalizado = CodigoRecuperacao.normalizar(codigo);
+        TokenRecuperacaoSenha t = tokenRepository.findByTokenHash(hash(normalizado))
                 .filter(x -> !x.getUsado() && !x.expirado())
                 .orElseThrow(TokenRecuperacaoInvalidoException::new);
 

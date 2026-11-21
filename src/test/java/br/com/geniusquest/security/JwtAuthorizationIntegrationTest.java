@@ -5,6 +5,7 @@ import br.com.geniusquest.entity.Usuario;
 import br.com.geniusquest.repository.UsuarioRepository;
 import br.com.geniusquest.repository.TokenRecuperacaoSenhaRepository;
 import br.com.geniusquest.entity.TokenRecuperacaoSenha;
+import br.com.geniusquest.service.CodigoRecuperacao;
 import br.com.geniusquest.service.RecuperacaoSenhaService;
 import java.time.Instant;
 import java.security.MessageDigest;
@@ -154,7 +155,7 @@ class JwtAuthorizationIntegrationTest {
                 .header(HttpHeaders.AUTHORIZATION, "Bearer " + jwtAnterior))
                 .andExpect(status().isOk());
 
-        String tokenPuro = "teste-reset-" + UUID.randomUUID();
+        String tokenPuro = CodigoRecuperacao.gerar();
         String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
                 .digest(tokenPuro.getBytes(StandardCharsets.UTF_8)));
         TokenRecuperacaoSenha recuperacao = new TokenRecuperacaoSenha();
@@ -164,7 +165,7 @@ class JwtAuthorizationIntegrationTest {
         recuperacao.setUsado(false);
         tokenRecuperacaoSenhaRepository.saveAndFlush(recuperacao);
 
-        recuperacaoSenhaService.redefinir(tokenPuro, "SenhaNovaTeste123!");
+        recuperacaoSenhaService.redefinir(tokenPuro, "SenhaNovaTeste123!", "127.0.0.1");
         usuarioRepository.flush();
 
         mockMvc.perform(get("/api/usuarios/{id}", titular.getId())
