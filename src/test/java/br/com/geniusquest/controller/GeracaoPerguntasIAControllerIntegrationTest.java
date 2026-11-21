@@ -23,7 +23,8 @@ import static org.springframework.security.test.web.servlet.request.SecurityMock
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@SpringBootTest(properties = {"app.ia.enabled=true", "app.ia.http-enabled=true"})
+@SpringBootTest(properties = {"app.ia.enabled=true", "app.ia.http-enabled=true",
+        "app.cors.allowed-origins=http://localhost:5173"})
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
 @Transactional
@@ -186,4 +187,42 @@ class GeracaoPerguntasIAControllerIntegrationTest {
                 .andExpect(status().isConflict());
         verify(geracao, times(1)).gerarCandidatas(temaId, 1);
     }
+    @Test
+    void preflightPermiteCabecalhoDeIdempotenciaParaFrontend() throws Exception {
+        mvc.perform(options("/api/admin/perguntas/geracao")
+                .header("Origin", "http://localhost:5173")
+                .header("Access-Control-Request-Method", "POST")
+                .header("Access-Control-Request-Headers",
+                        "authorization,content-type,idempotency-key"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "http://localhost:5173"))
+                .andExpect(header().string("Access-Control-Allow-Headers",
+                        org.hamcrest.Matchers.containsStringIgnoringCase("idempotency-key")));
+        verifyNoInteractions(geracao);
+    }
+
+    @Test
+    void temaInexistenteOuSuspensoNaoConsomeQuotaNemChamaIA() throws Exception {
+        UUID inexistente = UUID.randomUUID();
+        mvc.perform(post("/api/admin/perguntas/geracao")
+                .with(user(admin.getEmail()).roles("ADMIN"))
+                .header("Idempotency-Key", UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\\"temaId\\":\\"" + inexistente + "\\",\\"quantidade\\":1}"))
+                .andExpect(status().isNotFound());
+
+        Tema tema = temas.findById(temaId).orElseThrow();
+        tema.setStatus(StatusTema.SUSPENSO);
+        temas.saveAndFlush(tema);
+        mvc.perform(post("/api/admin/perguntas/geracao")
+                .with(user(admin.getEmail()).roles("ADMIN"))
+                .header("Idempotency-Key", UUID.randomUUID())
+                .contentType(MediaType.APPLICATION_JSON).content(pedido(1)))
+                .andExpect(status().isConflict());
+
+        assertEquals(0, cotas.usoHoje().requisicoes());
+        assertEquals(0, cotas.usoHoje().perguntas());
+        verifyNoInteractions(geracao);
+    }
+
 }
