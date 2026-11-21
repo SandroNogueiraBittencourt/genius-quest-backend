@@ -24,6 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @SpringBootTest(properties = {"app.ia.enabled=true", "app.ia.http-enabled=true",
+        "OPENAI_API_KEY=chave-simulada-sem-rede",
         "app.cors.allowed-origins=http://localhost:5173"})
 @ActiveProfiles("test")
 @AutoConfigureMockMvc
