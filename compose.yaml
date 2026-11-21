@@ -30,6 +30,16 @@ services:
     environment:
       SPRING_DOCKER_COMPOSE_ENABLED: "false"
       SERVER_PORT: "8080"
+      MAIL_PROVIDER: ${MAIL_PROVIDER:-smtp}
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      MAIL_HOST: ${MAIL_HOST:-smtp-relay.brevo.com}
+      MAIL_PORT: ${MAIL_PORT:-2525}
+      MAIL_STARTTLS_ENABLE: ${MAIL_STARTTLS_ENABLE:-true}
+      MAIL_STARTTLS_REQUIRED: ${MAIL_STARTTLS_REQUIRED:-true}
+      MAIL_USER: ${MAIL_USER:-}
+      MAIL_PASS: ${MAIL_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_NAME: ${POSTGRES_DB:-geniusquest}

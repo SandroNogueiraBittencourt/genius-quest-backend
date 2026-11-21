@@ -32,6 +32,9 @@ public class Usuario {
     @Column(nullable = false)
     private Boolean ativo;
 
+    @Column(name = "versao_credenciais", nullable = false)
+    private Long versaoCredenciais = 0L;
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm;
 
@@ -54,6 +57,10 @@ public class Usuario {
 
         if (ativo == null) {
             ativo = true;
+        }
+
+        if (versaoCredenciais == null) {
+            versaoCredenciais = 0L;
         }
 
         Instant agora = Instant.now();
@@ -121,6 +128,14 @@ public class Usuario {
 
     public void setAtivo(Boolean ativo) {
         this.ativo = ativo;
+    }
+
+    public long getVersaoCredenciais() {
+        return versaoCredenciais == null ? 0L : versaoCredenciais;
+    }
+
+    public void incrementarVersaoCredenciais() {
+        versaoCredenciais = getVersaoCredenciais() + 1;
     }
 
     public Instant getCriadoEm() {

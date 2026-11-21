@@ -53,6 +53,7 @@ public class JwtService {
                         "perfil",
                         usuario.getPerfil().name()
                 )
+                .claim("versaoCredenciais", usuario.getVersaoCredenciais())
                 .issuedAt(
                         Date.from(agora)
                 )
@@ -85,6 +86,13 @@ public class JwtService {
                         "usuarioId",
                         String.class
                 );
+    }
+
+    public long extrairVersaoCredenciais(String token) {
+        Object versao = extrairClaims(token).get("versaoCredenciais");
+        // Compatibilidade com JWTs emitidos antes da migration V11.
+        return versao == null ? 0L : versao instanceof Number numero
+                ? numero.longValue() : -1L;
     }
 
     public Instant extrairExpiracao(String token) {
