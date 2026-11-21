@@ -15,15 +15,18 @@ import org.springframework.stereotype.Service;
 public class GeracaoIAGatewayService {
     private final GeracaoPerguntasIAService geracao;
     private final GeracaoIAQuotaService cota;
+    private final PerguntasPersistenciaService persistencia;
     private final boolean iaHabilitada;
     private final boolean endpointHabilitado;
 
     public GeracaoIAGatewayService(GeracaoPerguntasIAService geracao,
             GeracaoIAQuotaService cota,
+            PerguntasPersistenciaService persistencia,
             @Value("${app.ia.enabled:false}") boolean iaHabilitada,
             @Value("${app.ia.http-enabled:false}") boolean endpointHabilitado) {
         this.geracao = geracao;
         this.cota = cota;
+        this.persistencia = persistencia;
         this.iaHabilitada = iaHabilitada;
         this.endpointHabilitado = endpointHabilitado;
     }
@@ -53,6 +56,10 @@ public class GeracaoIAGatewayService {
             throw new RegraTemasException(HttpStatus.BAD_REQUEST,
                     "Solicitacao IA invalida.");
         }
+
+        // Erros de tema inexistente ou nao aprovado nao devem gastar cota.
+        // O servico de geracao revalida o tema depois da chamada externa.
+        persistencia.contexto(pedido.temaId());
 
         // Esta transacao termina antes do HTTP e contabiliza ate falhas/timeout.
         cota.reservar(chave, solicitante, pedido.temaId(), pedido.quantidade());
