@@ -18,23 +18,27 @@ public class GeracaoIAGatewayService {
     private final PerguntasPersistenciaService persistencia;
     private final boolean iaHabilitada;
     private final boolean endpointHabilitado;
+    private final boolean chaveConfigurada;
 
     public GeracaoIAGatewayService(GeracaoPerguntasIAService geracao,
             GeracaoIAQuotaService cota,
             PerguntasPersistenciaService persistencia,
             @Value("${app.ia.enabled:false}") boolean iaHabilitada,
-            @Value("${app.ia.http-enabled:false}") boolean endpointHabilitado) {
+            @Value("${app.ia.http-enabled:false}") boolean endpointHabilitado,
+            @Value("${OPENAI_API_KEY:}") String chaveOpenAi) {
         this.geracao = geracao;
         this.cota = cota;
         this.persistencia = persistencia;
         this.iaHabilitada = iaHabilitada;
         this.endpointHabilitado = endpointHabilitado;
+        // Nao reter, exibir nem registrar a chave. Evita cota debitada sem API configurada.
+        this.chaveConfigurada = chaveOpenAi != null && !chaveOpenAi.isBlank();
     }
 
     public GeracaoIAStatusDTO estado() {
         var uso = cota.usoHoje();
         return new GeracaoIAStatusDTO(
-                iaHabilitada && endpointHabilitado,
+                iaHabilitada && endpointHabilitado && chaveConfigurada,
                 GeracaoIAQuotaService.MAX_POR_SOLICITACAO,
                 GeracaoIAQuotaService.MAX_REQUISICOES_DIA,
                 uso.requisicoes(),
@@ -45,7 +49,7 @@ public class GeracaoIAGatewayService {
     /** Sempre retorna apenas os IDs PENDENTES, nunca aprova perguntas. */
     public GeracaoIAResultadoDTO gerar(PedidoGeracaoIADTO pedido, UUID chave,
             String solicitante) {
-        if (!iaHabilitada || !endpointHabilitado) {
+        if (!iaHabilitada || !endpointHabilitado || !chaveConfigurada) {
             throw new RegraTemasException(HttpStatus.SERVICE_UNAVAILABLE,
                     "Geracao por IA desabilitada no servidor.");
         }
