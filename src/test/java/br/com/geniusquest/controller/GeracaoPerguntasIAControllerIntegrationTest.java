@@ -208,7 +208,7 @@ class GeracaoPerguntasIAControllerIntegrationTest {
                 .with(user(admin.getEmail()).roles("ADMIN"))
                 .header("Idempotency-Key", UUID.randomUUID())
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\\"temaId\\":\\"" + inexistente + "\\",\\"quantidade\\":1}"))
+                .content(pedido(1).replace(temaId.toString(), inexistente.toString()))
                 .andExpect(status().isNotFound());
 
         Tema tema = temas.findById(temaId).orElseThrow();
