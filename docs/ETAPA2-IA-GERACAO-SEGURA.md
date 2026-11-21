@@ -16,8 +16,9 @@ A geração só pode ocorrer se **ambas** estiverem `true`:
 - `APP_IA_ENABLED=false` (habilita adaptador real em vez do adaptador inativo)
 - `APP_IA_HTTP_ENABLED=false` (habilita invocação HTTP administrativa)
 
-**Defaults são false em todos os ambientes.** Nunca definir chave real ou habilitar
-essas flags no CI ou neste PR.
+**Defaults são false em todos os ambientes.** Mesmo com ambos os flags ativos,
+a ausência de `OPENAI_API_KEY` desabilita o recurso e retorna HTTP 503 sem
+consumir quota. Nunca incluir chave real nos testes, CI ou repositório.
 
 Quota global no PostgreSQL, persistente através de reinício e concorrência de instâncias,
 implementada pela migration **V12**:
@@ -25,9 +26,11 @@ implementada pela migration **V12**:
 - No máximo **4 requisições e 10 perguntas por dia UTC**, somando sucessos, falhas e timeouts;
 - Linha da quota bloqueada `FOR UPDATE` durante reserva de chave UUID;
 - Chave repetida recebe **409**, sem consumir quota adicional e sem repetir chamada paga;
+- Tema inexistente ou não aprovado falha com 404/409 **antes** de reservar quota;
 - Excesso recebe **429**, sem chamar IA;
 - Erros do provedor retornam mensagem segura **502**, não a resposta original;
 - Não realizar retry automático (timeout pode já ter custado tokens);
+- O CORS permite o cabeçalho `Idempotency-Key` no preflight, além de JWT e JSON;
 - O cliente existente usa `max_output_tokens=4500`, timeout 40s, `store=false`,
   JSON Schema estrito e Semaphore de um pedido por instância.
 
@@ -39,6 +42,9 @@ financeiros no painel da OpenAI antes de qualquer ativação real.
 
 - A V12 **cria apenas** `ia_geracao_cota_diaria` e `ia_geracao_solicitacoes`;
   não modifica `perguntas`, `temas`, `usuarios` nem eventos já homologados.
+- A migration V12 é aditiva (duas tabelas, índice e FK para temas), sem alteração
+  em perguntas ou eventos anteriores. Exigir backup e teste em homologação
+  antes de implantar em produção.
 - Uma solicitação reservada nunca é reexecutada com a mesma chave após falha;
   administrador deve verificar a fila antes de criar uma nova.
 - Todo candidato salvo continua `origem=IA`, `status=PENDENTE` e
