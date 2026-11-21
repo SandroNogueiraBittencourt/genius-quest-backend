@@ -47,7 +47,7 @@ class BrevoApiEmailSenderTest {
         var client = new BrevoApiEmailSender("chave-apenas-para-teste",
                 endpoint, HttpClient.newHttpClient());
         client.enviar("alguem@example.com", "Teste", "remetente@example.com",
-                "<a href='https://example.com/redefinir-senha?token=teste'>Recuperar</a>");
+                "Codigo ABCD-2345-EFGH-6789 <a href='https://example.com/redefinir-senha'>Recuperar</a>");
         assertEquals("chave-apenas-para-teste", credential.get());
 
         JsonNode json = new ObjectMapper().readTree(body.get());
@@ -55,7 +55,8 @@ class BrevoApiEmailSenderTest {
         assertEquals("alguem@example.com", json.path("to").get(0).path("email").asText());
         assertFalse(json.path("to").get(0).path("contactPixelTrackingConsent").asBoolean(true));
         assertEquals("Genius Quest: recuperação de senha", json.path("subject").asText());
-        assertTrue(json.path("htmlContent").asText().contains("token=teste"));
+        assertTrue(json.path("htmlContent").asText().contains("ABCD-2345-EFGH-6789"));
+        assertFalse(json.path("htmlContent").asText().contains("?token="));
     }
 
     @Test
