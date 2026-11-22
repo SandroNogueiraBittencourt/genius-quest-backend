@@ -129,7 +129,7 @@ public class JogoPartidaService {
     private RespostaPartidaDTO dto(RespostaPartida resposta) {
         return new RespostaPartidaDTO(
                 resposta.getPerguntaPartida().getPergunta().getId(),
-                resposta.getRespostaIndice(), resposta.isCorreta(), resposta.getRespondidaEm());
+                resposta.getRespostaIndice(), resposta.getRespondidaEm());
     }
 
     private Partida partidaDoCriadorComBloqueio(UUID id, Usuario usuario) {
