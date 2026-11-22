@@ -13,4 +13,8 @@ public interface PerguntaRepository extends JpaRepository<Pergunta, UUID> {
 
     List<Pergunta> findByTema_IdAndStatusOrderByCriadoEmAsc(
             UUID temaId, StatusPergunta status);
+
+    // Limitada no banco para evitar expor todo o banco de questões a um jogador.
+    List<Pergunta> findTop10ByTema_IdAndStatusOrderByCriadoEmAscIdAsc(
+            UUID temaId, StatusPergunta status);
 }
