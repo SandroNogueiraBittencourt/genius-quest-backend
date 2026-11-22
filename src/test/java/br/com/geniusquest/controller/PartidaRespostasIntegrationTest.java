@@ -191,7 +191,7 @@ class PartidaRespostasIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.perguntaId").value(p.getId().toString()))
                 .andExpect(jsonPath("$.alternativaIndice").value(0))
-                .andExpect(jsonPath("$.correta").value(true))
+                .andExpect(jsonPath("$.correta").doesNotExist())
                 .andExpect(jsonPath("$.respostaCorretaIndice").doesNotExist());
 
         mvc.perform(post("/api/partidas/{id}/respostas", partida.getId())
@@ -202,9 +202,10 @@ class PartidaRespostasIntegrationTest {
                 .with(user(dono.getEmail()).roles("USUARIO")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].correta").value(true))
+                .andExpect(jsonPath("$[0].correta").doesNotExist())
                 .andExpect(jsonPath("$[0].respostaCorretaIndice").doesNotExist());
         org.junit.jupiter.api.Assertions.assertEquals(1, respostas.count());
+        org.junit.jupiter.api.Assertions.assertTrue(respostas.findAll().get(0).isCorreta());
         org.junit.jupiter.api.Assertions.assertEquals(StatusPartida.EM_ANDAMENTO,
                 partidas.findById(partida.getId()).orElseThrow().getStatus());
     }
@@ -235,7 +236,8 @@ class PartidaRespostasIntegrationTest {
                 .with(user(dono.getEmail()).roles("USUARIO"))
                 .contentType(MediaType.APPLICATION_JSON).content(resposta(correta, 1)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.correta").value(false));
+                .andExpect(jsonPath("$.correta").doesNotExist());
+        org.junit.jupiter.api.Assertions.assertFalse(respostas.findAll().get(0).isCorreta());
     }
 
     @Test
