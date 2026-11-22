@@ -172,7 +172,7 @@ class PerguntaModeracaoIntegrationTest {
         mvc.perform(patch("/api/admin/perguntas/{id}/decisao", pendente.getId())
                 .with(user(admin.getEmail()).roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\\"acao\\":\\"APROVAR\\"}"))
+                .content("{\"acao\":\"APROVAR\"}"))
                 .andExpect(status().isConflict());
 
         mvc.perform(get("/api/admin/perguntas/{id}", pendente.getId())
@@ -195,7 +195,7 @@ class PerguntaModeracaoIntegrationTest {
         mvc.perform(patch("/api/admin/perguntas/{id}/decisao", pendente.getId())
                 .with(user(admin.getEmail()).roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\\"acao\\":\\"APROVAR\\"}"))
+                .content("{\"acao\":\"APROVAR\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APROVADA"));
     }
@@ -209,7 +209,7 @@ class PerguntaModeracaoIntegrationTest {
         mvc.perform(patch("/api/admin/perguntas/{id}/decisao", pendente.getId())
                 .with(user(admin.getEmail()).roles("ADMIN"))
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\\"acao\\":\\"APROVAR\\"}"))
+                .content("{\"acao\":\"APROVAR\"}"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APROVADA"));
     }
