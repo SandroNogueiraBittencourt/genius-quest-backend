@@ -6,7 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 public record SalaResponseDTO(UUID codigo, UUID partidaId, UUID anfitriaoId,
-        StatusPartida status, List<Participante> participantes, UUID temaId) {
+        StatusPartida status, List<Participante> participantes, UUID temaId, boolean encerrada) {
 
     public record Participante(UUID id, String nome) {}
 }

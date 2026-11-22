@@ -33,6 +33,9 @@ public class Partida {
     @Column(nullable = false, length = 24)
     private StatusPartida status;
 
+    @Column(name = "pergunta_atual", nullable = false)
+    private int perguntaAtual = 1;
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm;
 
@@ -55,5 +58,16 @@ public class Partida {
     public String getCategoriaNome() { return categoriaNome; }
     public void setCategoriaNome(String categoriaNome) { this.categoriaNome = categoriaNome; }
     public StatusPartida getStatus() { return status; }
+    public void iniciar() { status = StatusPartida.EM_ANDAMENTO; }
+    public void cancelar() { status = StatusPartida.CANCELADA; }
+    public int getPerguntaAtual() { return perguntaAtual; }
+
+    public void avancarPergunta(int totalPerguntas) {
+        if (perguntaAtual == totalPerguntas) {
+            status = StatusPartida.CONCLUIDA;
+        } else {
+            perguntaAtual++;
+        }
+    }
     public Instant getCriadoEm() { return criadoEm; }
 }
