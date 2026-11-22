@@ -44,13 +44,21 @@ public class PartidaService {
                 .map(ResultadoTemaCiclo::getTituloTema)
                 .orElseGet(vencedor::getTitulo);
 
+        return resposta(salvarPartida(criador, ciclo, vencedor, titulo));
+    }
+
+    Partida prepararTema(Usuario criador, Tema tema) {
+        return salvarPartida(criador, null, tema, tema.getTitulo());
+    }
+
+    private Partida salvarPartida(Usuario criador, CicloVotacao ciclo, Tema tema, String titulo) {
         Partida partida = new Partida();
         partida.setCiclo(ciclo);
-        partida.setTema(vencedor);
+        partida.setTema(tema);
         partida.setCriador(criador);
         partida.setTemaTitulo(titulo);
-        partida.setCategoriaNome(vencedor.getCategoria().getNome());
-        return resposta(partidas.saveAndFlush(partida));
+        partida.setCategoriaNome(tema.getCategoria().getNome());
+        return partidas.saveAndFlush(partida);
     }
 
     @Transactional(readOnly = true)
@@ -86,8 +94,9 @@ public class PartidaService {
     }
 
     private PartidaResponseDTO resposta(Partida partida) {
+        CicloVotacao ciclo = partida.getCiclo();
         return new PartidaResponseDTO(partida.getId(),
-                partida.getCiclo().getId(), partida.getCiclo().getNome(),
+                ciclo == null ? null : ciclo.getId(), ciclo == null ? null : ciclo.getNome(),
                 partida.getTema().getId(), partida.getTemaTitulo(),
                 partida.getCategoriaNome(), partida.getStatus(), partida.getCriadoEm());
     }

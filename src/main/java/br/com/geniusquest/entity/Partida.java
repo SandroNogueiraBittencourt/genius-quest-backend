@@ -11,8 +11,8 @@ public class Partida {
     @Column(nullable = false, updatable = false)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "ciclo_id", nullable = false, updatable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "ciclo_id", updatable = false)
     private CicloVotacao ciclo;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
