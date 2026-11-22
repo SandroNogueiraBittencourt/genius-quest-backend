@@ -8,6 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.UUID;
 
@@ -17,15 +18,18 @@ public class PartidaService {
     private final CicloVotacaoRepository ciclos;
     private final ResultadoTemaCicloRepository resultados;
     private final UsuarioRepository usuarios;
+    private final PerguntaRepository perguntas;
 
     public PartidaService(PartidaRepository partidas,
             CicloVotacaoRepository ciclos,
             ResultadoTemaCicloRepository resultados,
-            UsuarioRepository usuarios) {
+            UsuarioRepository usuarios,
+            PerguntaRepository perguntas) {
         this.partidas = partidas;
         this.ciclos = ciclos;
         this.resultados = resultados;
         this.usuarios = usuarios;
+        this.perguntas = perguntas;
     }
 
     @Transactional
@@ -62,6 +66,26 @@ public class PartidaService {
 
     @Transactional(readOnly = true)
     public PartidaResponseDTO buscar(UUID id, String email) {
+        return resposta(partidaDoCriador(id, email));
+    }
+
+    /** Consulta preliminar das questões aprovadas do tema vencedor, sem revelar o gabarito. */
+    @Transactional(readOnly = true)
+    public List<PerguntaQuizDTO> perguntasElegiveis(UUID partidaId, String email) {
+        Partida partida = partidaDoCriador(partidaId, email);
+        return perguntas.findTop10ByTema_IdAndStatusOrderByCriadoEmAscIdAsc(
+                        partida.getTema().getId(), StatusPergunta.APROVADA)
+                .stream().map(pergunta -> new PerguntaQuizDTO(
+                        pergunta.getId(),
+                        pergunta.getEnunciado(),
+                        pergunta.getAlternativas().stream()
+                                .sorted(Comparator.comparingInt(AlternativaPergunta::getPosicao))
+                                .map(AlternativaPergunta::getTexto).toList(),
+                        pergunta.getDificuldadeInicial()))
+                .toList();
+    }
+
+    private Partida partidaDoCriador(UUID id, String email) {
         Usuario usuario = usuarioAtivo(email);
         Partida partida = partidas.findById(id)
                 .orElseThrow(() -> erro(HttpStatus.NOT_FOUND, "Partida não encontrada"));
@@ -69,7 +93,7 @@ public class PartidaService {
             // Não revelar a existência de partidas particulares de outras contas.
             throw erro(HttpStatus.NOT_FOUND, "Partida não encontrada");
         }
-        return resposta(partida);
+        return partida;
     }
 
     private Usuario usuarioAtivo(String email) {
