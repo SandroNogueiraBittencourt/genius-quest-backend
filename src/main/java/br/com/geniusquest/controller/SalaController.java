@@ -2,7 +2,7 @@ package br.com.geniusquest.controller;
 
 import br.com.geniusquest.dto.partida.ContinuacaoSalaDTO;
 import br.com.geniusquest.dto.partida.PerguntaPartidaDTO;
-import br.com.geniusquest.dto.partida.RespostaPartidaDTO;
+import br.com.geniusquest.dto.partida.RespostaSalaDTO;
 import br.com.geniusquest.dto.partida.SalaResponseDTO;
 import br.com.geniusquest.service.SalaService;
 import br.com.geniusquest.service.SalaService.Votacao;
@@ -112,7 +112,7 @@ public class SalaController {
     }
 
     @PostMapping("/api/salas/{codigo}/partida/respostas")
-    public RespostaPartidaDTO responder(@PathVariable UUID codigo, @Valid @RequestBody Resposta pedido,
+    public RespostaSalaDTO responder(@PathVariable UUID codigo, @Valid @RequestBody Resposta pedido,
             Principal principal) {
         return salas.responder(codigo, pedido.numero(), pedido.alternativaIndice(), principal.getName());
     }

@@ -3,7 +3,7 @@ package br.com.geniusquest.service;
 import br.com.geniusquest.dto.partida.ContinuacaoSalaDTO;
 import br.com.geniusquest.dto.partida.ContinuacaoSalaDTO.Status;
 import br.com.geniusquest.dto.partida.PerguntaPartidaDTO;
-import br.com.geniusquest.dto.partida.RespostaPartidaDTO;
+import br.com.geniusquest.dto.partida.RespostaSalaDTO;
 import br.com.geniusquest.dto.partida.SalaResponseDTO;
 import br.com.geniusquest.entity.Partida;
 import br.com.geniusquest.entity.StatusCategoria;
@@ -307,7 +307,7 @@ public class SalaService {
     }
 
     @Transactional
-    public RespostaPartidaDTO responder(UUID codigo, int numero, int alternativaIndice, String email) {
+    public RespostaSalaDTO responder(UUID codigo, int numero, int alternativaIndice, String email) {
         UUID usuarioId = usuarioAtivo(email).getId();
         Sala sala = bloquearSalaAberta(codigo);
         exigirParticipante(codigo, usuarioId);
@@ -323,7 +323,7 @@ public class SalaService {
             throw new RegraTemasException(HttpStatus.CONFLICT, "Você já respondeu a esta pergunta");
         }
         avancarSeTodosResponderam(codigo, partida, pergunta.totalPerguntas());
-        return new RespostaPartidaDTO(numero, partida.getStatus(),
+        return new RespostaSalaDTO(numero, partida.getStatus(),
                 partida.getStatus() == StatusPartida.CONCLUIDA ? null : partida.getPerguntaAtual());
     }
 
