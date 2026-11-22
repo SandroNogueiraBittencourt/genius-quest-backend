@@ -87,22 +87,14 @@ public class OpenAiResponsesProvedor implements ProvedorPerguntasIA {
             throw new IllegalStateException("Já existe uma geração IA em andamento nesta instância.");
         }
         try {
-            String entrada = "Categoria: " + contexto.nomeCategoria()
-                    + "\nTema: " + contexto.tituloTema()
-                    + "\nGere exatamente " + quantidade + " perguntas, com níveis variados.";
-            Map<String, Object> formato = Map.of(
-                    "type", "json_schema", "name", "lote_perguntas",
-                    "strict", true, "schema", json.readTree(ESQUEMA));
-            Map<String, Object> requisicao = Map.of(
-                    "model", modelo, "instructions", INSTRUCOES, "input", entrada,
-                    "store", false, "max_output_tokens", 4500,
-                    "text", Map.of("format", formato));
+            // Payload montado localmente e coberto por teste sem chamada de rede.
+            String corpo = montarRequisicao(contexto, quantidade);
             HttpRequest pedido = HttpRequest.newBuilder(URL)
                     .timeout(Duration.ofSeconds(40))
                     .header("Authorization", "Bearer " + chave)
                     .header("Content-Type", "application/json")
                     .POST(HttpRequest.BodyPublishers.ofString(
-                            json.writeValueAsString(requisicao), StandardCharsets.UTF_8))
+                            corpo, StandardCharsets.UTF_8))
                     .build();
             HttpResponse<String> resposta = http.send(pedido,
                     HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
@@ -124,6 +116,25 @@ public class OpenAiResponsesProvedor implements ProvedorPerguntasIA {
         } finally {
             simultaneas.release();
         }
+    }
+
+    /**
+     * Monta o JSON da Responses API sem requisicao externa.
+     * Para quiz curto, reasoning none reduz custo/latencia e reserva tokens para JSON.
+     */
+    String montarRequisicao(ContextoGeracaoIA contexto, int quantidade) {
+        String entrada = "Categoria: " + contexto.nomeCategoria()
+                + "\nTema: " + contexto.tituloTema()
+                + "\nGere exatamente " + quantidade + " perguntas, com níveis variados.";
+        Map<String, Object> formato = Map.of(
+                "type", "json_schema", "name", "lote_perguntas",
+                "strict", true, "schema", json.readTree(ESQUEMA));
+        Map<String, Object> requisicao = Map.of(
+                "model", modelo, "instructions", INSTRUCOES, "input", entrada,
+                "store", false, "max_output_tokens", 4500,
+                "reasoning", Map.of("effort", "none"),
+                "text", Map.of("format", formato));
+        return json.writeValueAsString(requisicao);
     }
 
     /** Exposto ao teste no mesmo pacote, sem uso de rede ou chave real. */
