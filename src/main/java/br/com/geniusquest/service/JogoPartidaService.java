@@ -21,15 +21,17 @@ public class JogoPartidaService {
     private final PerguntaPartidaRepository perguntasPartida;
     private final RespostaPartidaRepository respostas;
     private final UsuarioRepository usuarios;
+    private final PartidaService preparacao;
 
     public JogoPartidaService(PartidaRepository partidas, PerguntaRepository perguntas,
             PerguntaPartidaRepository perguntasPartida, RespostaPartidaRepository respostas,
-            UsuarioRepository usuarios) {
+            UsuarioRepository usuarios, PartidaService preparacao) {
         this.partidas = partidas;
         this.perguntas = perguntas;
         this.perguntasPartida = perguntasPartida;
         this.respostas = respostas;
         this.usuarios = usuarios;
+        this.preparacao = preparacao;
     }
 
     /**
@@ -78,7 +80,7 @@ public class JogoPartidaService {
         }
 
         perguntasPartida.saveAllAndFlush(congeladas);
-        partida.setStatus(StatusPartida.EM_ANDAMENTO);
+        partida.iniciar();
         partidas.saveAndFlush(partida);
 
         return new PartidaResponseDTO(partida.getId(),
@@ -120,7 +122,7 @@ public class JogoPartidaService {
         Usuario usuario = usuarioAtivo(email);
         Partida partida = partidas.findById(partidaId)
                 .orElseThrow(() -> erro(HttpStatus.NOT_FOUND, "Partida não encontrada"));
-        validarCriador(partida, usuario);
+        validarJogoIndividual(partida, usuario);
         return respostas.findByPerguntaPartida_Partida_IdAndUsuario_IdOrderByRespondidaEmAscIdAsc(
                         partida.getId(), usuario.getId())
                 .stream().map(this::dto).toList();
@@ -135,14 +137,15 @@ public class JogoPartidaService {
     private Partida partidaDoCriadorComBloqueio(UUID id, Usuario usuario) {
         Partida partida = partidas.findByIdParaAtualizacao(id)
                 .orElseThrow(() -> erro(HttpStatus.NOT_FOUND, "Partida não encontrada"));
-        validarCriador(partida, usuario);
+        validarJogoIndividual(partida, usuario);
         return partida;
     }
 
-    private void validarCriador(Partida partida, Usuario usuario) {
+    private void validarJogoIndividual(Partida partida, Usuario usuario) {
         if (!partida.getCriador().getId().equals(usuario.getId())) {
             throw erro(HttpStatus.NOT_FOUND, "Partida não encontrada");
         }
+        preparacao.exigirJogoIndividual(partida);
     }
 
     private Usuario usuarioAtivo(String email) {

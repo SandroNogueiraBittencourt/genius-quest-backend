@@ -142,6 +142,40 @@ class PartidaRespostasIntegrationTest {
     }
 
     @Test
+    void partidaVinculadaASalaUsaOFluxoDoMultiplayer() throws Exception {
+        Pergunta p = pergunta(StatusPergunta.APROVADA);
+        var criador = user(dono.getEmail()).roles("USUARIO");
+        UUID id = partida.getId();
+
+        mvc.perform(post("/api/partidas/{id}/sala", id).with(criador))
+                .andExpect(status().isOk());
+        mvc.perform(post("/api/partidas/{id}/iniciar", id).with(criador))
+                .andExpect(status().isConflict());
+        mvc.perform(get("/api/partidas/{id}/perguntas", id).with(criador))
+                .andExpect(status().isConflict());
+        mvc.perform(get("/api/partidas/{id}/respostas", id).with(criador))
+                .andExpect(status().isConflict());
+        mvc.perform(post("/api/partidas/{id}/respostas", id).with(criador)
+                .contentType(MediaType.APPLICATION_JSON).content(resposta(p, 0)))
+                .andExpect(status().isConflict());
+        org.junit.jupiter.api.Assertions.assertTrue(snapshots.findByPartida_IdOrderByOrdemAsc(id).isEmpty());
+    }
+
+    @Test
+    void partidaIndividualEmAndamentoRecusaVinculoComSala() throws Exception {
+        pergunta(StatusPergunta.APROVADA);
+        iniciar();
+
+        mvc.perform(post("/api/partidas/{id}/sala", partida.getId())
+                .with(user(dono.getEmail()).roles("USUARIO")))
+                .andExpect(status().isConflict());
+        mvc.perform(get("/api/partidas/{id}/perguntas", partida.getId())
+                .with(user(dono.getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(1));
+    }
+
+    @Test
     void impedeIniciarSemPerguntasAprovadasOuIniciarNovamente() throws Exception {
         pergunta(StatusPergunta.PENDENTE);
         mvc.perform(post("/api/partidas/{id}/iniciar", partida.getId())

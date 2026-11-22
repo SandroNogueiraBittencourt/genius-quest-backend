@@ -31,8 +31,9 @@ public class PartidaController {
     }
 
     @GetMapping("/minhas")
-    public List<PartidaResponseDTO> minhas(Principal principal) {
-        return service.minhas(principal.getName());
+    public List<PartidaResponseDTO> minhas(
+            @RequestParam(defaultValue = "false") boolean incluirSalas, Principal principal) {
+        return service.minhas(principal.getName(), incluirSalas);
     }
 
     @GetMapping("/{id}")
