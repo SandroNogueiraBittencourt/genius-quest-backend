@@ -55,5 +55,6 @@ public class Partida {
     public String getCategoriaNome() { return categoriaNome; }
     public void setCategoriaNome(String categoriaNome) { this.categoriaNome = categoriaNome; }
     public StatusPartida getStatus() { return status; }
+    public void setStatus(StatusPartida status) { this.status = status; }
     public Instant getCriadoEm() { return criadoEm; }
 }

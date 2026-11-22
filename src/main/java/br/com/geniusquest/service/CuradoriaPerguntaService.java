@@ -142,6 +142,13 @@ public class CuradoriaPerguntaService {
                 if (anterior != StatusPergunta.PENDENTE) {
                     throw erro(HttpStatus.CONFLICT, "Somente perguntas pendentes podem ser aprovadas.");
                 }
+                // Candidatas da IA exigem fonte registrada pela curadoria antes da publicação.
+                if (pergunta.getOrigem() == OrigemPergunta.IA
+                        && (pergunta.getFonteReferencia() == null
+                            || pergunta.getFonteReferencia().isBlank())) {
+                    throw erro(HttpStatus.CONFLICT,
+                            "Informe uma fonte de referência antes de aprovar perguntas geradas por IA.");
+                }
                 // Valida novamente conteúdo persistido antes de publicar um gabarito.
                 validarConteudoPersistido(pergunta);
                 proximo = StatusPergunta.APROVADA;
