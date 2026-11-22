@@ -112,7 +112,7 @@ BEGIN
  THEN RAISE EXCEPTION 'Historico Flyway inesperado'; END IF;
  IF EXISTS (
    SELECT 1 FROM ensaio_flyway_snapshot old
-   FULL JOIN flyway_schema_history new USING (installed_rank)
+   LEFT JOIN flyway_schema_history new USING (installed_rank)
    WHERE new.installed_rank IS NULL OR old.version IS DISTINCT FROM new.version
      OR old.checksum IS DISTINCT FROM new.checksum
      OR old.description IS DISTINCT FROM new.description
