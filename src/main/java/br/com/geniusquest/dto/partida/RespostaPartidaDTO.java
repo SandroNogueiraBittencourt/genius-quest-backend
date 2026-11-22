@@ -3,10 +3,9 @@ package br.com.geniusquest.dto.partida;
 import java.time.Instant;
 import java.util.UUID;
 
-/** Informa somente a correção da própria tentativa, nunca o índice do gabarito. */
+/** Confirma a resposta registrada, sem revelar acerto ou gabarito antes do fechamento do quiz. */
 public record RespostaPartidaDTO(
         UUID perguntaId,
         int alternativaIndice,
-        boolean correta,
         Instant respondidaEm
 ) {}
