@@ -1,11 +1,17 @@
 package br.com.geniusquest.controller;
 
+import br.com.geniusquest.dto.partida.ContinuacaoSalaDTO;
+import br.com.geniusquest.dto.partida.PerguntaPartidaDTO;
+import br.com.geniusquest.dto.partida.RespostaPartidaDTO;
 import br.com.geniusquest.dto.partida.SalaResponseDTO;
 import br.com.geniusquest.service.SalaService;
 import br.com.geniusquest.service.SalaService.Votacao;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -14,6 +20,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.net.URI;
 import java.security.Principal;
@@ -77,8 +84,53 @@ public class SalaController {
         return salas.entrar(codigo, principal.getName());
     }
 
+    @DeleteMapping("/api/salas/{codigo}/entrada")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void sair(@PathVariable UUID codigo, Principal principal) {
+        salas.sair(codigo, principal.getName());
+    }
+
+    @DeleteMapping("/api/salas/{codigo}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void fecharSala(@PathVariable UUID codigo, Principal principal) {
+        salas.fecharSala(codigo, principal.getName());
+    }
+
     @GetMapping("/api/salas/{codigo}")
     public SalaResponseDTO consultar(@PathVariable UUID codigo, Principal principal) {
         return salas.consultar(codigo, principal.getName());
     }
+
+    @PostMapping("/api/salas/{codigo}/partida/iniciar")
+    public PerguntaPartidaDTO iniciarPartida(@PathVariable UUID codigo, Principal principal) {
+        return salas.iniciarPartida(codigo, principal.getName());
+    }
+
+    @GetMapping("/api/salas/{codigo}/partida/pergunta-atual")
+    public PerguntaPartidaDTO consultarPerguntaAtual(@PathVariable UUID codigo, Principal principal) {
+        return salas.consultarPerguntaAtual(codigo, principal.getName());
+    }
+
+    @PostMapping("/api/salas/{codigo}/partida/respostas")
+    public RespostaPartidaDTO responder(@PathVariable UUID codigo, @Valid @RequestBody Resposta pedido,
+            Principal principal) {
+        return salas.responder(codigo, pedido.numero(), pedido.alternativaIndice(), principal.getName());
+    }
+
+    public record Resposta(@NotNull @Min(1) @Max(10) Integer numero,
+            @NotNull @Min(0) @Max(3) Integer alternativaIndice) {}
+
+    @GetMapping("/api/salas/{codigo}/partidas/{partidaId}/continuacao")
+    public ContinuacaoSalaDTO consultarContinuacao(@PathVariable UUID codigo, @PathVariable UUID partidaId,
+            Principal principal) {
+        return salas.consultarContinuacao(codigo, partidaId, principal.getName());
+    }
+
+    @PutMapping("/api/salas/{codigo}/partidas/{partidaId}/continuacao")
+    public ContinuacaoSalaDTO votarContinuacao(@PathVariable UUID codigo, @PathVariable UUID partidaId,
+            @Valid @RequestBody VotoContinuacao pedido, Principal principal) {
+        return salas.votarContinuacao(codigo, partidaId, pedido.continuar(), principal.getName());
+    }
+
+    public record VotoContinuacao(@NotNull Boolean continuar) {}
 }
