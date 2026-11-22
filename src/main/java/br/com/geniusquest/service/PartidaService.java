@@ -19,17 +19,20 @@ public class PartidaService {
     private final ResultadoTemaCicloRepository resultados;
     private final UsuarioRepository usuarios;
     private final PerguntaRepository perguntas;
+    private final PerguntaPartidaRepository perguntasPartida;
 
     public PartidaService(PartidaRepository partidas,
             CicloVotacaoRepository ciclos,
             ResultadoTemaCicloRepository resultados,
             UsuarioRepository usuarios,
-            PerguntaRepository perguntas) {
+            PerguntaRepository perguntas,
+            PerguntaPartidaRepository perguntasPartida) {
         this.partidas = partidas;
         this.ciclos = ciclos;
         this.resultados = resultados;
         this.usuarios = usuarios;
         this.perguntas = perguntas;
+        this.perguntasPartida = perguntasPartida;
     }
 
     @Transactional
@@ -73,6 +76,15 @@ public class PartidaService {
     @Transactional(readOnly = true)
     public List<PerguntaQuizDTO> perguntasElegiveis(UUID partidaId, String email) {
         Partida partida = partidaDoCriador(partidaId, email);
+        if (partida.getStatus() != StatusPartida.PREPARACAO) {
+            // Depois do início, as questões e alternativas são lidas exclusivamente
+            // do snapshot, independentemente de edições posteriores na curadoria.
+            return perguntasPartida.findByPartida_IdOrderByOrdemAsc(partida.getId())
+                    .stream().map(snapshot -> new PerguntaQuizDTO(
+                            snapshot.getPergunta().getId(), snapshot.getEnunciado(),
+                            snapshot.getAlternativas(), snapshot.getDificuldadeInicial()))
+                    .toList();
+        }
         return perguntas.findTop10ByTema_IdAndStatusOrderByCriadoEmAscIdAsc(
                         partida.getTema().getId(), StatusPergunta.APROVADA)
                 .stream().map(pergunta -> new PerguntaQuizDTO(
