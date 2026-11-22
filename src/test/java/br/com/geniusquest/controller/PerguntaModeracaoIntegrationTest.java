@@ -75,6 +75,7 @@ class PerguntaModeracaoIntegrationTest {
         p.setRespostaCorretaIndice(valido.respostaCorretaIndice());
         p.setOrigem(OrigemPergunta.IA);
         p.setDificuldadeInicial(DificuldadePergunta.MEDIA);
+        p.setFonteReferencia("Material de teste revisado pela curadoria.");
         for (int i = 0; i < 4; i++) p.adicionarAlternativa(i, valido.alternativas().get(i));
         return perguntas.saveAndFlush(p);
     }
@@ -161,6 +162,56 @@ class PerguntaModeracaoIntegrationTest {
                 .andExpect(jsonPath("$[0].acao").value("REVISAR"))
                 .andExpect(jsonPath("$[1].acao").value("APROVAR"))
                 .andExpect(jsonPath("$[1].depois", containsString("APROVADA")));
+    }
+
+    @Test
+    void recusaAprovarPerguntaIaSemFonteAteRevisaoDaCuradoria() throws Exception {
+        pendente.setFonteReferencia(null);
+        perguntas.saveAndFlush(pendente);
+
+        mvc.perform(patch("/api/admin/perguntas/{id}/decisao", pendente.getId())
+                .with(user(admin.getEmail()).roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"acao\":\"APROVAR\"}"))
+                .andExpect(status().isConflict());
+
+        mvc.perform(get("/api/admin/perguntas/{id}", pendente.getId())
+                .with(user(admin.getEmail()).roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDENTE"))
+                .andExpect(jsonPath("$.fonteReferencia").value(nullValue()));
+
+        mvc.perform(get("/api/admin/perguntas/{id}/historico", pendente.getId())
+                .with(user(admin.getEmail()).roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+
+        mvc.perform(patch("/api/admin/perguntas/{id}/revisar", pendente.getId())
+                .with(user(admin.getEmail()).roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON).content(revisao()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.fonteReferencia").value("Material didático revisado"));
+
+        mvc.perform(patch("/api/admin/perguntas/{id}/decisao", pendente.getId())
+                .with(user(admin.getEmail()).roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"acao\":\"APROVAR\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APROVADA"));
+    }
+
+    @Test
+    void permiteAprovarPerguntaManualSemFonteNaRegraAtual() throws Exception {
+        pendente.setOrigem(OrigemPergunta.MANUAL);
+        pendente.setFonteReferencia(null);
+        perguntas.saveAndFlush(pendente);
+
+        mvc.perform(patch("/api/admin/perguntas/{id}/decisao", pendente.getId())
+                .with(user(admin.getEmail()).roles("ADMIN"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"acao\":\"APROVAR\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("APROVADA"));
     }
 
     @Test
