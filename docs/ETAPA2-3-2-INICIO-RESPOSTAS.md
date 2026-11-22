@@ -74,9 +74,26 @@ CI: `./mvnw -B clean verify` e build da imagem Docker.
 
 ## Planejamento de rollout
 1. Revisar diff e CI do PR (sem dados reais/segredos).
-2. **Antes de qualquer deploy**: backup atual do Render + verificação
-   `pg_restore --list`, teste completo de restauração e Flyway V12→V13
-   em instância isolada. Validar preservação de dados e migrations sem falhas.
+2. **Antes de qualquer deploy**: realizar backup atual do Render, verificar
+   `pg_restore --list`, restaurar num PostgreSQL 18 efêmero e aplicar o Flyway
+   V12→V13 **apenas na cópia** com este utilitário:
+
+   ```bash
+   # Executar na raiz da branch deste PR, no seu computador Arch Linux.
+   python3 scripts/geniusquest_v13_backup_restore.py backup
+
+   # Use o caminho do .dump recém-criado, informado pelo script anterior.
+   python3 scripts/geniusquest_v13_backup_restore.py restore-test \\
+     --backup "$HOME/Backups/geniusquest/render/geniusquest_pre_v13_AAAAmmddTHHMMSSZ.dump"
+   ```
+
+   A senha da conexão é solicitada sem eco, o dump e manifesto SHA-256 ficam
+   no diretório privado `~/Backups/geniusquest/render`. O teste exige a fonte
+   Flyway V12 e confere o histórico e os fingerprints de **todas as tabelas
+   preexistentes**, inclusive cotas e perguntas de IA, após aplicar somente a V13.
+   Rede Docker interna, sem portas no host, com limpeza automática ao terminar.
+   **Nunca compartilhar URL do banco, dump, hashes de senhas ou chaves em chats.**
+   Validar preservação de dados e migrations sem falhas.
 3. Autorizar explicitamente deploy que aplicará V13 no PostgreSQL de produção.
 4. Validar V13 sem inserir dados de teste artificialmente nos ciclos encerrados.
    Produção tem uma pergunta aprovada em Animais Pré-Históricos, mas os ciclos
