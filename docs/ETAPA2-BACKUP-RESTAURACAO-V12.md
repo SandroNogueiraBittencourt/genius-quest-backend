@@ -70,12 +70,32 @@ O teste usa a imagem oficial `postgres:18` e `flyway/flyway:11`. Não compartilh
 rede, arquivos de banco nem credenciais com a produção. **Não executa nenhum
 SQL de escrita contra o Render.**
 
+## Resultado do ensaio com backup real (22/11/2026)
+
+**Evidência fornecida pelo operador:** execução do utilitário no Arch Linux, com
+exportação de `pg_dump` no formato custom, manifesto SHA-256 e
+`restore-test` em banco PostgreSQL 18 temporário, usando cópia do Render.
+
+O log apresentado confirma:
+- `pg_restore` concluído na instância Docker isolada;
+- versão do histórico antes do teste: **V11**;
+- Flyway OSS 11.20.3 validou 12 migrations;
+- Flyway aplicou **somente a V12** sobre a cópia;
+- verificação de integridade: `OK: dados preexistentes, historico Flyway e V12 validados`;
+- limpeza do contêiner e rede temporários;
+- `SUCESSO: backup restaurado e V11 -> V12 validado em isolamento Docker.`
+
+Não foram compartilhados dump, URL de conexão nem segredos. O log informado
+comprova o ensaio concluído na máquina do operador; não constitui uma
+execução automática do CI contra o banco real. A V12 permanece não aplicada
+em produção até autorização específica do deploy.
+
 ## 3 — Critérios de liberação
 
-- [ ] Backup novo exportado, `pg_restore --list` válido e SHA-256 conferido.
-- [ ] `restore-test` terminou com mensagem **SUCESSO**.
-- [ ] Histórico Flyway V1-V11 e fingerprints das tabelas antigas íntegros.
-- [ ] Nenhum segredo, dump ou dado pessoal foi commitado.
+- [x] Backup novo exportado, `pg_restore --list` válido e SHA-256 conferido.
+- [x] `restore-test` terminou com mensagem **SUCESSO**.
+- [x] Histórico Flyway V1-V11 e fingerprints das tabelas antigas íntegros.
+- [x] Nenhum segredo, dump ou dado pessoal foi commitado.
 - [ ] `Backend CI` aprovado no `develop` após integrações relevantes.
 - [ ] Autorizar **separadamente** o deploy do backend com V12. Os flags
       `APP_IA_ENABLED=false` e `APP_IA_HTTP_ENABLED=false` devem permanecer off.
