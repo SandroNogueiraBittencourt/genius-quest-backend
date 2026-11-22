@@ -10,14 +10,15 @@ Data: 22/11/2026.
   quantidade **1**, status `CONCLUIDA`.
 - Pergunta: `9e5681d6-f20a-4d36-9479-23877a8ac38a`,
   `origem=IA`, `status=PENDENTE`, `modelo_ia=gpt-6-luna`,
-  dificuldade `MEDIA`; sem revisor, revisão ou fonte registrada.
+  dificuldade `MEDIA`; inicialmente sem revisor, revisão ou fonte registrada.
 - Tema: `Animais Pré-Históricos`, categoria `Animais`.
 - Quota: 1 solicitação, 1 pergunta (dia UTC de 22/11).
 - O Render recebeu atualização para `APP_IA_ENABLED=false` e
   `APP_IA_HTTP_ENABLED=false`; geração ficou desativada.
-- **O custo real na OpenAI Platform permanece a conferir**: painel de Analytics
-  fornecido pelo operador ainda exibia zero tokens/solicitações após o teste;
-  isso não invalida a persistência no banco nem estabelece custo zero.
+- **Custo OpenAI confirmado em Analytics → Gastos:** **US$ 0,000067**
+  para a geração, com 229 tokens de entrada, 89 de saída (318 no total).
+  A atualização dos indicadores de uso ocorreu depois do primeiro painel zerado.
+  O orçamento do projeto era de US$ 1 com limite aplicado.
 
 ## Referência para curadoria
 
@@ -67,3 +68,19 @@ ler a referência e verificar a resposta antes de publicar.
 - Os testes usam Spring MockMvc/PostgreSQL de testes sem chamadas pagas.
 - Não há alteração de quotas, credenciais, perfis nem flags.
 - **Não implantar o backend sem a validação do CI e revisão do PR**.
+
+## Atualização da curadoria após o primeiro teste
+
+Em 22/11/2026 às 20:48 UTC, o administrador usou a tela de moderação
+para revisar a candidata `9e5681d6-f20a-4d36-9479-23877a8ac38a`:
+
+- `status=PENDENTE` foi preservado, sem aprovação automática.
+- `fonteReferencia` foi registrada como
+  `https://www.nhm.ac.uk/discover/what-are-dinosaurs.html?utm_source=chatgpt.com`.
+  O parâmetro `utm_source` é dispensável; a referência do museu permanece válida.
+- O histórico passou a conter um evento `REVISAR`, com revisor e motivo:
+  `Referência científica conferida. O mosassauro era um réptil marinho, não um dinossauro.`
+- A revisão e o histórico foram conferidos via SQL somente leitura no banco Render.
+
+A conclusão desta atualização não significa aprovação. A decisão `APROVAR`
+continua dependente do administrador após revisão do conteúdo.
