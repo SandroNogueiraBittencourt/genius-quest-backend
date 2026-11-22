@@ -504,4 +504,34 @@ class CategoriaControllerTest {
                                 .value("REMOVIDA")
                 );
     }
+
+    @Test
+    void cadastroComNomeDeUmaLetraDeveRetornar400() throws Exception {
+        mockMvc.perform(post("/api/categorias")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new CategoriaCadastroDTO(" A ", "Teste"))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.nome").exists());
+    }
+
+    @Test
+    void atualizacaoComNomeDeUmaLetraDeveRetornar400() throws Exception {
+        mockMvc.perform(patch("/api/categorias/{id}", UUID.randomUUID())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new CategoriaAtualizacaoDTO(" A ", null))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.nome").exists());
+    }
+
+    @Test
+    void cadastroComDescricaoExcessivaDeveRetornar400() throws Exception {
+        mockMvc.perform(post("/api/categorias")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(
+                                new CategoriaCadastroDTO("Tecnologia", "x".repeat(256)))))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.descricao").exists());
+    }
 }

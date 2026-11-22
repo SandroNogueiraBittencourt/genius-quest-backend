@@ -15,6 +15,10 @@ import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import br.com.geniusquest.repository.UsuarioRepository;
+import br.com.geniusquest.entity.Usuario;
+import java.util.Optional;
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -31,6 +35,9 @@ class JwtAuthenticationFilterTest {
     @Mock
     private TokenRevocationService tokenRevocationService;
 
+    @Mock
+    private UsuarioRepository usuarioRepository;
+
     private JwtAuthenticationFilter filter;
 
     @BeforeEach
@@ -41,7 +48,8 @@ class JwtAuthenticationFilterTest {
         filter = new JwtAuthenticationFilter(
                 jwtService,
                 usuarioDetailsService,
-                tokenRevocationService
+                tokenRevocationService,
+                usuarioRepository
         );
     }
 
@@ -118,6 +126,16 @@ class JwtAuthenticationFilterTest {
                         "login.teste@geniusquest.com"
                 )
         ).thenReturn(usuario);
+
+        Usuario entidade = new Usuario();
+        entidade.setId(UUID.randomUUID());
+        entidade.setAtivo(true);
+        when(usuarioRepository.findByEmailIgnoreCase("login.teste@geniusquest.com"))
+                .thenReturn(Optional.of(entidade));
+        when(jwtService.extrairUsuarioId("token-valido"))
+                .thenReturn(entidade.getId().toString());
+        when(jwtService.extrairVersaoCredenciais("token-valido"))
+                .thenReturn(0L);
 
         filter.doFilter(
                 request,

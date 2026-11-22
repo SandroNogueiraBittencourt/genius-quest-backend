@@ -4,7 +4,7 @@ databases:
   - name: genius-quest-db
     databaseName: geniusquest
     user: geniusquest
-    plan: free
+    plan: 0.1c-256mb
     region: oregon
     postgresMajorVersion: "18"
 
@@ -18,7 +18,7 @@ services:
     region: oregon
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
-    autoDeployTrigger: checksPass
+    autoDeployTrigger: off
     envVars:
       - key: PORT
         value: "8080"

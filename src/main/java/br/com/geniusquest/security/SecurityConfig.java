@@ -59,6 +59,13 @@ public class SecurityConfig {
                                                                 "/api/auth/login")
                                                 .permitAll()
 
+                                                // Recuperação de senha
+                                                .requestMatchers(
+                                                                HttpMethod.POST,
+                                                                "/api/auth/esqueci-senha",
+                                                                "/api/auth/redefinir-senha")
+                                                .permitAll()
+
                                                 .requestMatchers(
                                                                 HttpMethod.GET,
                                                                 "/api/usuarios")
@@ -158,7 +165,8 @@ public class SecurityConfig {
                                 List.of(
                                                 "Authorization",
                                                 "Content-Type",
-                                                "Accept"));
+                                                "Accept",
+                                                "Idempotency-Key"));
 
                 configuration.setAllowCredentials(true);
 

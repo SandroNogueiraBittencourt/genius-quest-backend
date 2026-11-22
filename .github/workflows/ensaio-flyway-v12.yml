@@ -1,0 +1,40 @@
+name: Flyway V12 - Upgrade Isolado
+
+on:
+  push:
+    branches:
+      - 'chore/ensaio-isolado-v12-20261122'
+  pull_request:
+    paths:
+      - '.github/workflows/ensaio-flyway-v12.yml'
+      - 'scripts/ci_ensaio_flyway_v11_v12.sh'
+      - 'src/main/resources/db/migration/V12__quota_e_idempotencia_geracao_ia.sql'
+
+permissions:
+  contents: read
+
+jobs:
+  migration:
+    name: V11 para V12 com dados ficticios
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_DB: geniusquest_v12_lab
+          POSTGRES_USER: geniusquest_v12_ci
+          POSTGRES_PASSWORD: senha_ci_efemera_sem_uso_real
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd="pg_isready -U geniusquest_v12_ci -d geniusquest_v12_lab"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=15
+
+    steps:
+      - name: Checkout das migracoes do commit sob teste
+        uses: actions/checkout@v4
+      - name: Executar migracao real no PostgreSQL 18 isolado
+        run: bash scripts/ci_ensaio_flyway_v11_v12.sh

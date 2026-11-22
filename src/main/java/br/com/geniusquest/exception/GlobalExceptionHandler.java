@@ -17,6 +17,16 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+        @ExceptionHandler(TokenRecuperacaoInvalidoException.class)
+        public ResponseEntity<ErroRespostaDTO> tratarTokenRecuperacaoInvalido(
+                        TokenRecuperacaoInvalidoException exception, HttpServletRequest request) {
+                HttpStatus status = HttpStatus.BAD_REQUEST;
+                return ResponseEntity.status(status).body(new ErroRespostaDTO(
+                                Instant.now(), status.value(), status.getReasonPhrase(),
+                                exception.getMessage(), request.getRequestURI(), null));
+        }
+
+
         @ExceptionHandler(EmailJaCadastradoException.class)
         public ResponseEntity<ErroRespostaDTO> tratarEmailJaCadastrado(
                         EmailJaCadastradoException exception,
@@ -125,6 +135,16 @@ public class GlobalExceptionHandler {
                                 .body(erro);
 
         }
+        @ExceptionHandler(CategoriaInvalidaException.class)
+        public ResponseEntity<ErroRespostaDTO> tratarCategoriaInvalida(
+                        CategoriaInvalidaException exception,
+                        HttpServletRequest request) {
+                HttpStatus status = HttpStatus.BAD_REQUEST;
+                return ResponseEntity.status(status).body(new ErroRespostaDTO(
+                                Instant.now(), status.value(), status.getReasonPhrase(),
+                                exception.getMessage(), request.getRequestURI(), null));
+        }
+
         @ExceptionHandler(RegraTemasException.class)
         public ResponseEntity<ErroRespostaDTO> tratarRegrasTemas(
                         RegraTemasException exception, HttpServletRequest request) {

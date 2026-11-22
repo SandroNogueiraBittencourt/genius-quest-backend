@@ -1,0 +1,62 @@
+package br.com.geniusquest.service.ia;
+
+import org.junit.jupiter.api.Test;
+import java.util.UUID;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+import static org.junit.jupiter.api.Assertions.*;
+
+class OpenAiResponsesProvedorTest {
+    private final OpenAiResponsesProvedor client = new OpenAiResponsesProvedor(
+            JsonMapper.builder().build(), "chave-falsa-nao-utilizada", "modelo-de-teste");
+
+    @Test
+    void preparaRequisicaoResponsesParaQuizSemChamadaPaga() {
+        var contexto = new ContextoGeracaoIA(UUID.randomUUID(), "Astronomia", "Ciencias");
+        JsonNode requisicao = JsonMapper.builder().build()
+                .readTree(client.montarRequisicao(contexto, 1));
+
+        assertEquals("modelo-de-teste", requisicao.path("model").asString());
+        assertEquals("none", requisicao.path("reasoning").path("effort").asString());
+        assertTrue(requisicao.has("store"));
+        assertFalse(requisicao.path("store").asBoolean());
+        assertEquals(4500, requisicao.path("max_output_tokens").asInt());
+        JsonNode formato = requisicao.path("text").path("format");
+        assertEquals("json_schema", formato.path("type").asString());
+        assertTrue(formato.path("strict").asBoolean());
+        assertTrue(formato.path("schema").has("additionalProperties"));
+        assertFalse(formato.path("schema").path("additionalProperties").asBoolean());
+        assertTrue(formato.path("schema").path("properties")
+                .path("perguntas").path("items").has("additionalProperties"));
+        assertFalse(formato.path("schema").path("properties")
+                .path("perguntas").path("items").path("additionalProperties").asBoolean());
+        assertTrue(requisicao.path("input").asString().contains("Astronomia"));
+    }
+
+    @Test
+    void interpretaMensagemEstruturadaSemFazerRequisicao() {
+        String payload = """
+                {"perguntas":[{"enunciado":"Qual planeta é conhecido como planeta vermelho?",
+                "alternativas":["Marte","Vênus","Júpiter","Saturno"],
+                "respostaCorretaIndice":0,"dificuldade":"FACIL","fonteReferencia":null}]}
+                """;
+        String resposta = """
+                {"status":"completed","output":[{"type":"message","content":[
+                  {"type":"output_text","text":%s}
+                ]}]}
+                """.formatted(JsonMapper.builder().build().writeValueAsString(payload));
+        var lote = client.interpretar(resposta, 1);
+        assertEquals("modelo-de-teste", lote.modelo());
+        assertEquals(1, lote.perguntas().size());
+        assertEquals(0, lote.perguntas().get(0).respostaCorretaIndice());
+        assertNull(lote.perguntas().get(0).fonteReferencia());
+    }
+
+    @Test
+    void recusaRespostaIncompletaEContagemErrada() {
+        assertThrows(IllegalStateException.class,
+                () -> client.interpretar("{\"status\":\"incomplete\",\"output\":[]}", 1));
+        assertThrows(IllegalStateException.class,
+                () -> client.interpretar("{\"status\":\"completed\",\"output\":[]}", 1));
+    }
+}
