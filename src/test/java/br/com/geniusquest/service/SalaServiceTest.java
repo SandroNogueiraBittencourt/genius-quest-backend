@@ -1,5 +1,6 @@
 package br.com.geniusquest.service;
 
+import br.com.geniusquest.dto.partida.PerguntaPartidaDTO;
 import br.com.geniusquest.dto.partida.SalaResponseDTO.Participante;
 import br.com.geniusquest.entity.Partida;
 import br.com.geniusquest.entity.StatusPartida;
@@ -7,6 +8,7 @@ import br.com.geniusquest.entity.StatusTema;
 import br.com.geniusquest.entity.Tema;
 import br.com.geniusquest.entity.Usuario;
 import br.com.geniusquest.exception.RegraTemasException;
+import br.com.geniusquest.repository.PartidaPerguntaRepository;
 import br.com.geniusquest.repository.PartidaRepository;
 import br.com.geniusquest.repository.SalaRepository;
 import br.com.geniusquest.repository.SalaRepository.Sala;
@@ -35,6 +37,7 @@ class SalaServiceTest {
     @Mock private UsuarioRepository usuarios;
     @Mock private TemaRepository temas;
     @Mock private PartidaService preparacao;
+    @Mock private PartidaPerguntaRepository perguntasDaPartida;
     @Mock private Partida partida;
     @Mock private Tema tema;
     @InjectMocks private SalaService service;
@@ -43,6 +46,35 @@ class SalaServiceTest {
     private final UUID usuarioId = UUID.randomUUID();
     private final UUID partidaId = UUID.randomUUID();
     private final UUID codigo = UUID.randomUUID();
+
+    @Test
+    void anfitriaoIniciaPartidaAoPrepararTodasAsPerguntas() {
+        identificarUsuario(true);
+        localizarPartidaDaSala();
+        when(partida.getId()).thenReturn(partidaId);
+        when(partida.getPerguntaAtual()).thenReturn(1);
+        when(partida.getStatus()).thenReturn(StatusPartida.PREPARACAO);
+        when(partida.getTema()).thenReturn(tema);
+        UUID temaId = UUID.randomUUID();
+        when(tema.getId()).thenReturn(temaId);
+        when(perguntasDaPartida.copiarPerguntasAprovadas(partidaId, temaId, 10)).thenReturn(10);
+        var pergunta = new PerguntaPartidaDTO(partidaId, 1, 10, "Pergunta", List.of("A", "B", "C", "D"));
+        when(perguntasDaPartida.buscar(partidaId, 1)).thenReturn(Optional.of(pergunta));
+
+        assertEquals(pergunta, service.iniciarPartida(codigo, EMAIL));
+        verify(partida).iniciar();
+    }
+
+    @Test
+    void naoIniciaPartidaSemTemaDefinido() {
+        identificarUsuario(true);
+        when(salas.buscarParaAtualizacao(codigo)).thenReturn(Optional.of(new Sala(null, usuarioId)));
+
+        var erro = assertThrows(RegraTemasException.class, () -> service.iniciarPartida(codigo, EMAIL));
+
+        assertEquals(HttpStatus.CONFLICT, erro.getStatus());
+        verifyNoInteractions(perguntasDaPartida, partidas);
+    }
 
     @Test
     void criaSalaSemPartidaNemTema() {
