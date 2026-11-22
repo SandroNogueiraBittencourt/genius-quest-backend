@@ -36,4 +36,13 @@ public class PartidaController {
     public PartidaResponseDTO buscar(@PathVariable UUID id, Principal principal) {
         return service.buscar(id, principal.getName());
     }
+
+    /**
+     * Prévia de até dez perguntas aprovadas do tema vencedor.
+     * Não inicia nem pontua o quiz e nunca devolve o gabarito.
+     */
+    @GetMapping("/{id}/perguntas")
+    public List<PerguntaQuizDTO> perguntasElegiveis(@PathVariable UUID id, Principal principal) {
+        return service.perguntasElegiveis(id, principal.getName());
+    }
 }
