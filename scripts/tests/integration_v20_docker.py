@@ -38,15 +38,12 @@ def main() -> int:
                 "--network", net, "-e", f"POSTGRES_DB={mod.PG_DB}",
                 "-e", f"POSTGRES_USER={mod.PG_USER}",
                 "-e", f"POSTGRES_PASSWORD={pwd}", "postgres:18")
-            for _ in range(80):
-                check = subprocess.run(
-                    ["docker", "exec", pg, "pg_isready", "-U", mod.PG_USER,
-                     "-d", mod.PG_DB], capture_output=True)
-                if check.returncode == 0:
+            for _ in range(120):
+                if mod.banco_temporario_pronto(pg):
                     break
                 time.sleep(.5)
             else:
-                raise RuntimeError("PostgreSQL de teste nao inicializou")
+                raise RuntimeError("PostgreSQL de teste nao finalizou inicializacao")
             def sql(stmt: str) -> str:
                 return run("docker", "exec", "-i", pg, "psql", "-X", "-A",
                            "-t", "-v", "ON_ERROR_STOP=1",

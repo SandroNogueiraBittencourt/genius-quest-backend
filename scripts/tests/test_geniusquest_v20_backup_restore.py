@@ -81,6 +81,29 @@ class BackupRestoreSafetyTests(unittest.TestCase):
                 self.assertEqual(1, executar.call_count)
                 self.assertEqual("psql", executar.call_args.args[0][0])
 
+    def test_ready_so_apos_tcp_e_banco_criado(self):
+        # Na inicializacao, pg_isready via socket retorna OK antes do
+        # POSTGRES_DB existir. A checagem deve exigir TCP + SELECT 1.
+        def resultado(rc, stdout=""):
+            return subprocess.CompletedProcess(["docker"], rc, stdout=stdout)
+        with patch.object(mod.subprocess, "run", side_effect=[
+            resultado(1),                             # servidor TCP indisponivel
+            resultado(0), resultado(2),               # TCP pronto, DB ausente
+            resultado(0), resultado(0, "1\n"),      # TCP + consulta funcionam
+        ]) as executar:
+            self.assertFalse(mod.banco_temporario_pronto("pg_teste"))
+            self.assertFalse(mod.banco_temporario_pronto("pg_teste"))
+            self.assertTrue(mod.banco_temporario_pronto("pg_teste"))
+            chamadas = [c.args[0] for c in executar.call_args_list]
+        self.assertEqual(5, len(chamadas))
+        for i in (0, 1, 3):
+            self.assertIn("pg_isready", chamadas[i])
+            self.assertIn("-h", chamadas[i])
+            self.assertIn("127.0.0.1", chamadas[i])
+        for i in (2, 4):
+            self.assertIn("psql", chamadas[i])
+            self.assertEqual("SELECT 1;", chamadas[i][-1])
+
     def test_hash_validado_antes_de_criar_containers(self):
         with tempfile.TemporaryDirectory() as d:
             root = Path(d)
