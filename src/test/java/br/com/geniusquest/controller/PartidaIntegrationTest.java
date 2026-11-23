@@ -167,7 +167,10 @@ class PartidaIntegrationTest {
         var convidado = user(segundo.getEmail()).roles("USUARIO");
         mvc.perform(post(rota + "/entrada").with(convidado)).andExpect(status().isOk());
         for (int numero = 1; numero <= 10; numero++) {
-            criarPergunta("Pergunta " + numero, StatusPergunta.APROVADA, 4);
+            Pergunta pergunta = criarPergunta("Pergunta " + numero, StatusPergunta.APROVADA, 4);
+            pergunta.setDificuldadeInicial(numero <= 4 ? DificuldadePergunta.FACIL
+                    : numero <= 7 ? DificuldadePergunta.MEDIA : DificuldadePergunta.DIFICIL);
+            perguntas.saveAndFlush(pergunta);
         }
         var inicio = mvc.perform(post(rota + "/partida/iniciar").with(anfitriao))
                 .andExpect(status().isOk()).andReturn();
@@ -176,6 +179,10 @@ class PartidaIntegrationTest {
                 .get("partidaId").asText());
         String respostas = rota + "/partida/respostas";
         String atual = rota + "/partida/pergunta-atual";
+        String resultado = rota + "/partidas/" + partidaId + "/resultado";
+        mvc.perform(get(resultado).with(convidado)).andExpect(status().isConflict());
+        mvc.perform(get(resultado).with(user(usuario("fora").getEmail()).roles("USUARIO")))
+                .andExpect(status().isNotFound());
 
         mvc.perform(post(respostas).with(anfitriao).contentType(MediaType.APPLICATION_JSON)
                 .content(pedidoResposta(1, 4))).andExpect(status().isBadRequest());
@@ -212,6 +219,22 @@ class PartidaIntegrationTest {
         org.junit.jupiter.api.Assertions.assertEquals(10, jdbc.queryForObject(
                 "SELECT COUNT(*) FROM partida_respostas WHERE partida_id = ? AND acertou", Integer.class, partidaId));
 
+        var placar = mvc.perform(get(resultado).with(anfitriao)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.classificacao.length()").value(2))
+                .andExpect(jsonPath("$.classificacao[0].id").value(primeiro.getId().toString()))
+                .andExpect(jsonPath("$.classificacao[0].pontos").value(190))
+                .andExpect(jsonPath("$.classificacao[0].acertos").value(10))
+                .andExpect(jsonPath("$.classificacao[0].erros").value(0))
+                .andExpect(jsonPath("$.classificacao[0].posicao").value(1))
+                .andExpect(jsonPath("$.classificacao[1].id").value(segundo.getId().toString()))
+                .andExpect(jsonPath("$.classificacao[1].pontos").value(0))
+                .andExpect(jsonPath("$.classificacao[1].erros").value(10))
+                .andExpect(jsonPath("$.classificacao[1].posicao").value(2))
+                .andReturn();
+        String placarFinal = placar.getResponse().getContentAsString();
+        mvc.perform(get(resultado).with(convidado)).andExpect(status().isOk())
+                .andExpect(content().json(placarFinal));
+
         entityManager.flush();
         String continuacao = rota + "/partidas/" + partidaId + "/continuacao";
         mvc.perform(put(continuacao).with(anfitriao).contentType(MediaType.APPLICATION_JSON)
@@ -231,6 +254,36 @@ class PartidaIntegrationTest {
         mvc.perform(get(continuacao).with(convidado)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APROVADA"))
                 .andExpect(jsonPath("$.favoraveis").value(2));
+        mvc.perform(get(resultado).with(convidado)).andExpect(status().isOk())
+                .andExpect(content().json(placarFinal));
+    }
+
+    @Test
+    void jogadoresEmpatadosFicamNaMesmaPosicao() throws Exception {
+        String rota = criarSalaComPartida();
+        var anfitriao = user(primeiro.getEmail()).roles("USUARIO");
+        var convidado = user(segundo.getEmail()).roles("USUARIO");
+        mvc.perform(post(rota + "/entrada").with(convidado)).andExpect(status().isOk());
+        for (int numero = 1; numero <= 10; numero++) {
+            criarPergunta("Pergunta " + numero, StatusPergunta.APROVADA, 4);
+        }
+        var inicio = mvc.perform(post(rota + "/partida/iniciar").with(anfitriao))
+                .andExpect(status().isOk()).andReturn();
+        var json = com.fasterxml.jackson.databind.json.JsonMapper.builder().build();
+        String partidaId = json.readTree(inicio.getResponse().getContentAsString()).get("partidaId").asText();
+        for (int numero = 1; numero <= 10; numero++) {
+            for (var jogador : List.of(anfitriao, convidado)) {
+                mvc.perform(post(rota + "/partida/respostas").with(jogador)
+                        .contentType(MediaType.APPLICATION_JSON).content(pedidoResposta(numero, 2)))
+                        .andExpect(status().isOk());
+            }
+        }
+        mvc.perform(get(rota + "/partidas/" + partidaId + "/resultado").with(convidado))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.classificacao[0].pontos").value(200))
+                .andExpect(jsonPath("$.classificacao[1].pontos").value(200))
+                .andExpect(jsonPath("$.classificacao[0].posicao").value(1))
+                .andExpect(jsonPath("$.classificacao[1].posicao").value(1));
     }
 
     @Test
