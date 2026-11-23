@@ -11,6 +11,7 @@ Valida:
 - `/api/temas` → HTTP 401 sem JWT
 - `/api/partidas/minhas` → HTTP 401 sem JWT
 - `/api/admin/perguntas/geracao/status` → HTTP 401 sem JWT
+- Swagger UI e OpenAPI (`/swagger-ui.html`, `/swagger-ui/index.html`, `/v3/api-docs`, `/v3/api-docs.yaml`, `/v3/api-docs/swagger-config`) → HTTP 401 sem JWT; nenhuma definição de API pode ser publicada anonimamente
 - OPTIONS `/api/temas` com Origin do frontend → CORS permitido
 - frontend estático → HTTP 200 com conteúdo HTML
 
