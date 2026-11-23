@@ -254,6 +254,43 @@ class SecurityConfigTest {
                 .andExpect(status().isOk());
     }
 
+    @Test
+    void documentacaoSwaggerEOpenApiNaoSaoPublicas() throws Exception {
+        for (String caminho : new String[]{
+                "/v3/api-docs",
+                "/v3/api-docs.yaml",
+                "/v3/api-docs/swagger-config",
+                "/swagger-ui.html",
+                "/swagger-ui/index.html"
+        }) {
+            mockMvc.perform(get(caminho))
+                    .andExpect(status().isUnauthorized());
+        }
+    }
+
+    @Test
+    @WithMockUser(username = "usuario@geniusquest.test", roles = "USUARIO")
+    void usuarioComumNaoPodeConsultarSwaggerOuOpenApi() throws Exception {
+        for (String caminho : new String[]{
+                "/v3/api-docs",
+                "/v3/api-docs.yaml",
+                "/swagger-ui.html",
+                "/swagger-ui/index.html"
+        }) {
+            mockMvc.perform(get(caminho))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    @Test
+    @WithMockUser(username = "admin@geniusquest.test", roles = "ADMIN")
+    void documentacaoPermaneceDesabilitadaMesmoParaAdminEmTestes() throws Exception {
+        mockMvc.perform(get("/v3/api-docs"))
+                .andExpect(status().isNotFound());
+        mockMvc.perform(get("/swagger-ui.html"))
+                .andExpect(status().isNotFound());
+    }
+
     private Usuario persistirUsuario(String email) {
         Usuario usuario = new Usuario();
         usuario.setNome("Usuario de Teste");
