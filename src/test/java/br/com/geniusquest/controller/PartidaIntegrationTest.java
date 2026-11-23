@@ -507,6 +507,17 @@ class PartidaIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.cicloId").doesNotExist())
                 .andExpect(jsonPath("$.temaId").value(tema.getId().toString()));
+        mvc.perform(get("/api/partidas/minhas").with(user(primeiro.getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+        mvc.perform(get("/api/partidas/minhas").param("incluirSalas", "true")
+                .with(user(primeiro.getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(partidaId))
+                .andExpect(jsonPath("$[0].cicloId").doesNotExist());
+        mvc.perform(post("/api/partidas/{id}/iniciar", partidaId)
+                .with(user(primeiro.getEmail()).roles("USUARIO")))
+                .andExpect(status().isConflict());
     }
 
     @Test

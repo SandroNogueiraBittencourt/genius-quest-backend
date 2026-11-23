@@ -64,7 +64,7 @@ public class SalaService {
     @Transactional
     public SalaResponseDTO criar(UUID partidaId, String email) {
         UUID usuarioId = usuarioAtivo(email).getId();
-        Partida partida = partidas.buscarParaAtualizacao(partidaId)
+        Partida partida = partidas.findByIdParaAtualizacao(partidaId)
                 .filter(p -> p.getCriador().getId().equals(usuarioId))
                 .orElseThrow(() -> new RegraTemasException(HttpStatus.NOT_FOUND, "Partida não encontrada"));
 
@@ -419,7 +419,7 @@ public class SalaService {
 
     private Partida bloquearPartida(Sala sala) {
         return sala.partidaId() == null ? null
-                : partidas.buscarParaAtualizacao(sala.partidaId()).orElseThrow(this::salaNaoEncontrada);
+                : partidas.findByIdParaAtualizacao(sala.partidaId()).orElseThrow(this::salaNaoEncontrada);
     }
 
     private Usuario usuarioAtivo(String email) {

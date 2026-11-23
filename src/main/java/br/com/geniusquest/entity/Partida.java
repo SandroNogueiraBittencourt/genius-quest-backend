@@ -58,7 +58,6 @@ public class Partida {
     public String getCategoriaNome() { return categoriaNome; }
     public void setCategoriaNome(String categoriaNome) { this.categoriaNome = categoriaNome; }
     public StatusPartida getStatus() { return status; }
-    public void setStatus(StatusPartida status) { this.status = status; }
     public void iniciar() { status = StatusPartida.EM_ANDAMENTO; }
     public void cancelar() { status = StatusPartida.CANCELADA; }
     public int getPerguntaAtual() { return perguntaAtual; }
@@ -70,6 +69,5 @@ public class Partida {
             perguntaAtual++;
         }
     }
-
     public Instant getCriadoEm() { return criadoEm; }
 }

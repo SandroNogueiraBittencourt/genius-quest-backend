@@ -20,19 +20,22 @@ public class PartidaService {
     private final UsuarioRepository usuarios;
     private final PerguntaRepository perguntas;
     private final PerguntaPartidaRepository perguntasPartida;
+    private final SalaRepository salas;
 
     public PartidaService(PartidaRepository partidas,
             CicloVotacaoRepository ciclos,
             ResultadoTemaCicloRepository resultados,
             UsuarioRepository usuarios,
             PerguntaRepository perguntas,
-            PerguntaPartidaRepository perguntasPartida) {
+            PerguntaPartidaRepository perguntasPartida,
+            SalaRepository salas) {
         this.partidas = partidas;
         this.ciclos = ciclos;
         this.resultados = resultados;
         this.usuarios = usuarios;
         this.perguntas = perguntas;
         this.perguntasPartida = perguntasPartida;
+        this.salas = salas;
     }
 
     @Transactional
@@ -69,10 +72,12 @@ public class PartidaService {
     }
 
     @Transactional(readOnly = true)
-    public List<PartidaResponseDTO> minhas(String email) {
+    public List<PartidaResponseDTO> minhas(String email, boolean incluirSalas) {
         Usuario usuario = usuarioAtivo(email);
-        return partidas.findTop20ByCriador_IdOrderByCriadoEmDescIdDesc(usuario.getId())
-                .stream().map(this::resposta).toList();
+        List<Partida> encontradas = incluirSalas
+                ? partidas.findTop20ByCriador_IdOrderByCriadoEmDescIdDesc(usuario.getId())
+                : partidas.findTop20ByCriador_IdAndCicloIsNotNullOrderByCriadoEmDescIdDesc(usuario.getId());
+        return encontradas.stream().map(this::resposta).toList();
     }
 
     @Transactional(readOnly = true)
@@ -84,6 +89,7 @@ public class PartidaService {
     @Transactional(readOnly = true)
     public List<PerguntaQuizDTO> perguntasElegiveis(UUID partidaId, String email) {
         Partida partida = partidaDoCriador(partidaId, email);
+        exigirJogoIndividual(partida);
         if (partida.getStatus() != StatusPartida.PREPARACAO) {
             // Depois do início, as questões e alternativas são lidas exclusivamente
             // do snapshot, independentemente de edições posteriores na curadoria.
@@ -103,6 +109,12 @@ public class PartidaService {
                                 .map(AlternativaPergunta::getTexto).toList(),
                         pergunta.getDificuldadeInicial()))
                 .toList();
+    }
+
+    void exigirJogoIndividual(Partida partida) {
+        if (partida.getCiclo() == null || salas.buscarCodigo(partida.getId()).isPresent()) {
+            throw erro(HttpStatus.CONFLICT, "Use a sala para jogar esta partida");
+        }
     }
 
     private Partida partidaDoCriador(UUID id, String email) {

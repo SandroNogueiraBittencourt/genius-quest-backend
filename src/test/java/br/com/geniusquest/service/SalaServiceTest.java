@@ -93,7 +93,7 @@ class SalaServiceTest {
     @Test
     void criaSalaEAdicionaCriadorComoAnfitriao() {
         Usuario criador = identificarUsuario(true);
-        when(partidas.buscarParaAtualizacao(partidaId)).thenReturn(Optional.of(partida));
+        when(partidas.findByIdParaAtualizacao(partidaId)).thenReturn(Optional.of(partida));
         when(salas.buscarCodigo(partidaId)).thenReturn(Optional.empty());
         when(partida.getCriador()).thenReturn(criador);
         when(partida.getId()).thenReturn(partidaId);
@@ -128,7 +128,7 @@ class SalaServiceTest {
         identificarUsuario(true);
         Usuario dono = new Usuario();
         dono.setId(UUID.randomUUID());
-        when(partidas.buscarParaAtualizacao(partidaId)).thenReturn(Optional.of(partida));
+        when(partidas.findByIdParaAtualizacao(partidaId)).thenReturn(Optional.of(partida));
         when(partida.getCriador()).thenReturn(dono);
 
         var erro = assertThrows(RegraTemasException.class, () -> service.criar(partidaId, EMAIL));
@@ -198,6 +198,6 @@ class SalaServiceTest {
 
     private void localizarPartidaDaSala() {
         when(salas.buscarParaAtualizacao(codigo)).thenReturn(Optional.of(new Sala(partidaId, usuarioId)));
-        when(partidas.buscarParaAtualizacao(partidaId)).thenReturn(Optional.of(partida));
+        when(partidas.findByIdParaAtualizacao(partidaId)).thenReturn(Optional.of(partida));
     }
 }
