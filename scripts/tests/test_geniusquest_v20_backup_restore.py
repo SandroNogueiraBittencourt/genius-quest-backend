@@ -42,8 +42,8 @@ class BackupRestoreSafetyTests(unittest.TestCase):
                             mod.read_db_conn()
 
     def test_sql_tem_delimitadores_corretos_e_preserva_v13(self):
-        self.assertIn("DO $", mod.VERIFY_SQL)
-        self.assertIn("END $;", mod.VERIFY_SQL)
+        self.assertIn("DO $$", mod.VERIFY_SQL)
+        self.assertIn("END $$;", mod.VERIFY_SQL)
         self.assertNotIn("DO $\\n", mod.VERIFY_SQL)
         self.assertNotIn("END $;", mod.VERIFY_SQL)
         self.assertIn("origem NOT IN (12, 13)", mod.VERIFY_SQL)
@@ -57,7 +57,7 @@ class BackupRestoreSafetyTests(unittest.TestCase):
                         ["-h", "db.example.test", "-p", "5432", "-U", "u", "-d", "db"])):
                 def fake_command(args, **kwargs):
                     if args[0] == "psql":
-                        return subprocess.CompletedProcess(args, 0, stdout="13\\n" if "MAX(version" in args[-1] else "0\\n")
+                        return subprocess.CompletedProcess(args, 0, stdout="13\n" if "MAX(version" in args[-1] else "0\n")
                     if args[0] == "pg_dump":
                         Path(args[args.index("--file") + 1]).write_bytes(b"dump_sintetico")
                     return subprocess.CompletedProcess(args, 0, stdout="ok")
@@ -74,7 +74,7 @@ class BackupRestoreSafetyTests(unittest.TestCase):
             with patch.object(mod, "require_bin"), patch.object(mod, "read_db_conn",
                     return_value=({"PGPASSWORD": "somente_teste"}, ["-h", "test"])):
                 with patch.object(mod, "command",
-                    return_value=subprocess.CompletedProcess(["psql"], 0, stdout="14\\n")) as executar:
+                    return_value=subprocess.CompletedProcess(["psql"], 0, stdout="14\n")) as executar:
                     with patch("sys.stdout", new_callable=io.StringIO):
                         with self.assertRaises(mod.ValidacaoError):
                             mod.backup()
