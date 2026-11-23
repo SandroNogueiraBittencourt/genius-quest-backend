@@ -4,6 +4,8 @@ import br.com.geniusquest.dto.pergunta.*;
 import br.com.geniusquest.exception.RegraTemasException;
 import java.util.List;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -13,6 +15,7 @@ import org.springframework.stereotype.Service;
 @Service
 @PreAuthorize("hasRole('ADMIN')")
 public class GeracaoIAGatewayService {
+    private static final Logger LOG = LoggerFactory.getLogger(GeracaoIAGatewayService.class);
     private final GeracaoPerguntasIAService geracao;
     private final GeracaoIAQuotaService cota;
     private final PerguntasPersistenciaService persistencia;
@@ -72,6 +75,10 @@ public class GeracaoIAGatewayService {
             cota.concluir(chave);
             return new GeracaoIAResultadoDTO(ids, "PENDENTE");
         } catch (RuntimeException ex) {
+            Integer statusAplicacao = ex instanceof RegraTemasException regra
+                    ? regra.getStatus().value() : null;
+            LOG.warn("Falha na geração de perguntas IA após a reserva (tipo={}, statusAplicacao={})",
+                    ex.getClass().getSimpleName(), statusAplicacao);
             cota.falhar(chave);
             // Nunca enviar payload de provedor, prompt, tokens ou resposta de erro bruta.
             throw new RegraTemasException(HttpStatus.BAD_GATEWAY,

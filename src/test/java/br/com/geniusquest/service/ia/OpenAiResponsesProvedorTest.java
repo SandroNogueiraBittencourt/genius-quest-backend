@@ -59,4 +59,23 @@ class OpenAiResponsesProvedorTest {
         assertThrows(IllegalStateException.class,
                 () -> client.interpretar("{\"status\":\"completed\",\"output\":[]}", 1));
     }
+
+    @Test
+    void extraiSomenteCodigosDeErroConhecidosParaDiagnostico() {
+        assertEquals("insufficient_quota",
+                client.codigoErroSeguro("""
+                        {"error":{"code":"insufficient_quota","message":"detalhe privado"}}
+                        """));
+        assertEquals("project_spend_limit_exceeded",
+                client.codigoErroSeguro("""
+                        {"error":{"type":"insufficient_quota","code":"project_spend_limit_exceeded"}}
+                        """));
+        assertEquals("desconhecido",
+                client.codigoErroSeguro("""
+                        {"error":{"code":"dado privado inesperado"}}
+                        """));
+        assertEquals("desconhecido", client.codigoErroSeguro("corpo invalido"));
+        assertEquals("desconhecido", client.codigoErroSeguro(""));
+        assertEquals("desconhecido", client.codigoErroSeguro("{\"error\":{\"code\":null}}"));
+    }
 }
