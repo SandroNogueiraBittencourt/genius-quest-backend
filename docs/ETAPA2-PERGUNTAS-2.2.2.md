@@ -6,8 +6,9 @@
   OpenAI **Responses API** com Structured Outputs (JSON Schema estrito).
 - `GeracaoPerguntasIAService.gerarCandidatas(temaId, quantidade)` é **interno**:
   ainda não há rota HTTP. A segurança ADMIN virá na subetapa 2.2.3.
-- Apenas título do tema e nome da categoria são enviados ao provedor; não enviamos
-  usuários, e-mails, JWT, histórico, nem o gabarito de outras perguntas.
+- A entrada do modelo contém o título do tema aprovado, o nome da categoria, a
+  quantidade solicitada e até 20 enunciados recentes do mesmo tema. Enunciados de
+  perguntas pendentes, aprovadas e bloqueadas orientam o modelo a evitar repetições.
 - Os lotes são limitados a 1–10 perguntas; exatamente quatro alternativas por pergunta.
 - O modelo do banco V8 é reutilizado. Candidatas passam por validação Java, prevenção
   de duplicatas e transação de persistência. Toda pergunta entra como `PENDENTE`.

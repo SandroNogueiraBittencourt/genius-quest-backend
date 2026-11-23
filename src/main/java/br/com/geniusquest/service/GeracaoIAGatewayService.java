@@ -66,7 +66,7 @@ public class GeracaoIAGatewayService {
 
         // Erros de tema inexistente ou nao aprovado nao devem gastar cota.
         // O servico de geracao revalida o tema depois da chamada externa.
-        persistencia.contexto(pedido.temaId());
+        persistencia.validarTemaAprovado(pedido.temaId());
 
         // Esta transacao termina antes do HTTP e contabiliza ate falhas/timeout.
         cota.reservar(chave, solicitante, pedido.temaId(), pedido.quantidade());
