@@ -5,6 +5,7 @@
 - A origem Render recebe apenas SELECT e pg_dump; nenhuma migration ou restore ocorre em produção.
 - Dump em formato custom, SHA-256 e manifesto com permissão privada.
 - O ensaio restaura a cópia em PostgreSQL 18 num Docker **interno sem portas publicadas**, com volume efêmero.
+- Antes do `pg_restore`, espera o servidor definitivo responder por TCP interno (`127.0.0.1`) e verifica `SELECT 1` no banco de destino. `pg_isready` via socket, isoladamente, não garante que `POSTGRES_DB` já tenha sido criado.
 - Aplica exclusivamente migrations V13–V20 (origem V12) ou V14–V20 (origem V13) à cópia via Flyway 11.
 - Compara fingerprints e contagens de todas as tabelas antigas, incluindo snapshots e respostas V13 quando existentes, histórico Flyway de origem
   e objetos introduzidos pelas migrations V13–V20.

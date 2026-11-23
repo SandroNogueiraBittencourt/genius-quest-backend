@@ -231,6 +231,25 @@ def psql(docker_container: str, sql: str, *, capture: bool = False) -> subproces
                     "-d", PG_DB, "-c", sql], capture=capture)
 
 
+def banco_temporario_pronto(container: str) -> bool:
+    """Esperar o servidor definitivo e o DB existente, nao apenas pg_isready.
+
+    Durante initdb, a imagem oficial sobe um servidor temporario por Unix
+    socket; pg_isready nesse instante retorna OK antes de POSTGRES_DB existir.
+    """
+    tcp = subprocess.run([
+        "docker", "exec", container, "pg_isready", "-h", "127.0.0.1",
+        "-U", PG_USER, "-d", PG_DB,
+    ], capture_output=True)
+    if tcp.returncode != 0:
+        return False
+    banco = subprocess.run([
+        "docker", "exec", container, "psql", "-X", "-A", "-t",
+        "-v", "ON_ERROR_STOP=1", "-U", PG_USER, "-d", PG_DB, "-c", "SELECT 1;",
+    ], capture_output=True, text=True)
+    return banco.returncode == 0 and banco.stdout.strip() == "1"
+
+
 def restore_test(archive: Path, migrations: Path) -> None:
     for app in ("docker", "pg_restore"):
         require_bin(app)
@@ -263,14 +282,12 @@ def restore_test(archive: Path, migrations: Path) -> None:
                  "--env", f"POSTGRES_USER={PG_USER}",
                  "--env", f"POSTGRES_PASSWORD={tmp_password}", "postgres:18"])
         container_started = True
-        for _ in range(80):
-            status = subprocess.run(["docker", "exec", pg, "pg_isready", "-U", PG_USER,
-                                     "-d", PG_DB], capture_output=True)
-            if status.returncode == 0:
+        for _ in range(120):
+            if banco_temporario_pronto(pg):
                 break
             time.sleep(0.5)
         else:
-            raise ValidacaoError("PostgreSQL temporario nao inicializou.")
+            raise ValidacaoError("PostgreSQL temporario nao finalizou a inicializacao do banco.")
         print("Restaurando o dump no PostgreSQL 18 ISOLADO (nao em producao).")
         with archive.open("rb") as f:
             command(["docker", "exec", "-i", pg, "pg_restore", "-U", PG_USER,
