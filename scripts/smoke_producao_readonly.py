@@ -60,6 +60,16 @@ def main() -> int:
     exigir("Partidas sem JWT", API + "/api/partidas/minhas", 401)
     exigir("IA status admin sem JWT", API + "/api/admin/perguntas/geracao/status", 401)
 
+    # Documentacao nunca deve estar acessivel anonimamente na producao.
+    for caminho in (
+        "/v3/api-docs",
+        "/v3/api-docs.yaml",
+        "/v3/api-docs/swagger-config",
+        "/swagger-ui.html",
+        "/swagger-ui/index.html",
+    ):
+        exigir("Documentacao protegida " + caminho, API + caminho, 401)
+
     origin = FRONTEND
     status, cabecalhos, _ = consultar(
         API + "/api/temas", metodo="OPTIONS",
@@ -76,7 +86,7 @@ def main() -> int:
     if status != 200 or "text/html" not in tipo.lower():
         raise RuntimeError("Frontend nao respondeu HTML HTTP 200")
 
-    print("SUCESSO: smoke HTTP read-only, autenticacao e CORS sem escritas.")
+    print("SUCESSO: smoke HTTP read-only, documentacao protegida, autenticacao e CORS.")
     return 0
 
 

@@ -18,7 +18,7 @@ permissions:
 
 jobs:
   smoke:
-    name: Verificar health, 401, CORS e frontend sem escritas
+    name: Verificar health, Swagger, 401, CORS e frontend sem escritas
     runs-on: ubuntu-latest
     timeout-minutes: 8
     steps:
