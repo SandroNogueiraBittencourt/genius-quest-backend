@@ -4,6 +4,7 @@ import br.com.geniusquest.dto.partida.ContinuacaoSalaDTO;
 import br.com.geniusquest.dto.partida.ContinuacaoSalaDTO.Status;
 import br.com.geniusquest.dto.partida.PerguntaPartidaDTO;
 import br.com.geniusquest.dto.partida.RespostaSalaDTO;
+import br.com.geniusquest.dto.partida.ResultadoPartidaDTO;
 import br.com.geniusquest.dto.partida.SalaResponseDTO;
 import br.com.geniusquest.entity.Partida;
 import br.com.geniusquest.entity.StatusCategoria;
@@ -14,6 +15,7 @@ import br.com.geniusquest.entity.Usuario;
 import br.com.geniusquest.exception.RegraTemasException;
 import br.com.geniusquest.repository.PartidaRepository;
 import br.com.geniusquest.repository.PartidaPerguntaRepository;
+import br.com.geniusquest.repository.ResultadoPartidaRepository;
 import br.com.geniusquest.repository.SalaRepository;
 import br.com.geniusquest.repository.SalaRepository.Sala;
 import br.com.geniusquest.repository.SalaRepository.TotalVotos;
@@ -38,15 +40,18 @@ public class SalaService {
     private final TemaRepository temas;
     private final PartidaService preparacao;
     private final PartidaPerguntaRepository perguntasDaPartida;
+    private final ResultadoPartidaRepository resultados;
 
     public SalaService(SalaRepository salas, PartidaRepository partidas, UsuarioRepository usuarios,
-            TemaRepository temas, PartidaService preparacao, PartidaPerguntaRepository perguntasDaPartida) {
+            TemaRepository temas, PartidaService preparacao, PartidaPerguntaRepository perguntasDaPartida,
+            ResultadoPartidaRepository resultados) {
         this.salas = salas;
         this.partidas = partidas;
         this.usuarios = usuarios;
         this.temas = temas;
         this.preparacao = preparacao;
         this.perguntasDaPartida = perguntasDaPartida;
+        this.resultados = resultados;
     }
 
     @Transactional
@@ -330,7 +335,25 @@ public class SalaService {
     private void avancarSeTodosResponderam(UUID codigo, Partida partida, int totalPerguntas) {
         if (perguntasDaPartida.todosResponderam(codigo, partida.getId(), partida.getPerguntaAtual())) {
             partida.avancarPergunta(totalPerguntas);
+            if (partida.getStatus() == StatusPartida.CONCLUIDA) {
+                partidas.flush();
+                resultados.registrar(partida.getId());
+            }
         }
+    }
+
+    @Transactional(readOnly = true)
+    public ResultadoPartidaDTO consultarResultado(UUID codigo, UUID partidaId, String email) {
+        UUID usuarioId = usuarioAtivo(email).getId();
+        if (salas.buscarCodigo(partidaId).filter(codigo::equals).isEmpty()
+                || !(salas.possuiParticipante(codigo, usuarioId) || resultados.constaNoResultado(partidaId, usuarioId))) {
+            throw salaNaoEncontrada();
+        }
+        Partida partida = partidas.findById(partidaId).orElseThrow(this::salaNaoEncontrada);
+        if (partida.getStatus() != StatusPartida.CONCLUIDA) {
+            throw new RegraTemasException(HttpStatus.CONFLICT, "O resultado estará disponível após o fim da partida");
+        }
+        return new ResultadoPartidaDTO(partidaId, resultados.classificar(partidaId));
     }
 
     private PerguntaPartidaDTO perguntaAtual(Partida partida) {
