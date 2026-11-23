@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 /** Transações curtas: chamadas HTTP ao provedor ficam fora do banco. */
 @Service
 public class PerguntasPersistenciaService {
+    private static final int MAX_ENUNCIADOS_CONTEXTO = 20;
     private static final List<StatusPergunta> ATIVAS = List.of(
             StatusPergunta.PENDENTE, StatusPergunta.APROVADA, StatusPergunta.BLOQUEADA);
     private final TemaRepository temas;
@@ -30,9 +32,17 @@ public class PerguntasPersistenciaService {
     }
 
     @Transactional(readOnly = true)
+    public void validarTemaAprovado(UUID temaId) {
+        temaAprovado(temaId);
+    }
+
+    @Transactional(readOnly = true)
     public ContextoGeracaoIA contexto(UUID temaId) {
         Tema tema = temaAprovado(temaId);
-        return new ContextoGeracaoIA(tema.getId(), tema.getTitulo(), tema.getCategoria().getNome());
+        List<String> enunciados = perguntas.buscarEnunciadosRecentes(
+                temaId, ATIVAS, PageRequest.of(0, MAX_ENUNCIADOS_CONTEXTO));
+        return new ContextoGeracaoIA(
+                tema.getId(), tema.getTitulo(), tema.getCategoria().getNome(), enunciados);
     }
 
     @Transactional
