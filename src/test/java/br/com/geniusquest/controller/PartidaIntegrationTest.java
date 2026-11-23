@@ -234,6 +234,12 @@ class PartidaIntegrationTest {
         String placarFinal = placar.getResponse().getContentAsString();
         mvc.perform(get(resultado).with(convidado)).andExpect(status().isOk())
                 .andExpect(content().json(placarFinal));
+        String codigoSala = rota.substring(rota.lastIndexOf('/') + 1);
+        mvc.perform(get("/api/partidas/minhas").param("incluirSalas", "true").with(convidado))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(partidaId.toString()))
+                .andExpect(jsonPath("$[0].codigoSala").value(codigoSala))
+                .andExpect(jsonPath("$[0].status").value("CONCLUIDA"));
 
         entityManager.flush();
         String continuacao = rota + "/partidas/" + partidaId + "/continuacao";
@@ -254,6 +260,10 @@ class PartidaIntegrationTest {
         mvc.perform(get(continuacao).with(convidado)).andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("APROVADA"))
                 .andExpect(jsonPath("$.favoraveis").value(2));
+        mvc.perform(get("/api/partidas/minhas").param("incluirSalas", "true").with(convidado))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(partidaId.toString()))
+                .andExpect(jsonPath("$[0].status").value("CONCLUIDA"));
         mvc.perform(get(resultado).with(convidado)).andExpect(status().isOk())
                 .andExpect(content().json(placarFinal));
     }
