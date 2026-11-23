@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Genius Quest: exportar PostgreSQL Render e ensaiar Flyway V12 -> V20 localmente.
+"""Genius Quest: exportar PostgreSQL Render e ensaiar Flyway V12/V13 -> V20 localmente.
 
 As operacoes no banco Render sao somente leitura (psql SELECT e pg_dump).
 O restore e a migration ocorrem exclusivamente em Docker temporario isolado.
@@ -91,8 +91,8 @@ def backup() -> None:
                      "FROM public.flyway_schema_history WHERE success"],
                     env=env, capture=True)
     version = check.stdout.strip()
-    if version != "12":
-        raise ValidacaoError(f"Banco de origem na versao Flyway {version}, esperada V12. Sem dump.")
+    if version not in ("12", "13"):
+        raise ValidacaoError(f"Banco de origem Flyway {version}; esperada V12 ou V13. Sem dump.")
     failures = command(["psql", "-X", "-A", "-t", "-v", "ON_ERROR_STOP=1", *conn,
                         "-c", "SELECT COUNT(*) FROM public.flyway_schema_history WHERE NOT success"],
                        env=env, capture=True).stdout.strip()
@@ -105,7 +105,7 @@ def backup() -> None:
     with path.open("xb"):
         pass
     os.chmod(path, 0o600)
-    print(f"Gerando backup custom PostgreSQL (Flyway V12): {path}")
+    print(f"Gerando backup custom PostgreSQL (Flyway V{version}): {path}")
     try:
         command(["pg_dump", *conn, "--format=custom", "--no-owner",
                  "--no-privileges", "--file", str(path)], env=env)
@@ -153,16 +153,29 @@ CREATE TABLE gq_v20_flyway_snapshot AS
 """
 
 VERIFY_SQL = r"""
-DO $
-DECLARE t RECORD; linhas BIGINT; resumo TEXT; expressao TEXT;
+DO $$
+DECLARE
+  t RECORD;
+  linhas BIGINT;
+  resumo TEXT;
+  expressao TEXT;
+  origem INTEGER;
 BEGIN
+ SELECT MAX(version::integer) INTO origem
+ FROM gq_v20_flyway_snapshot WHERE success;
+ IF origem NOT IN (12, 13) THEN
+   RAISE EXCEPTION 'Origem Flyway inesperada: %', origem;
+ END IF;
  IF (SELECT MAX(version::integer) FROM flyway_schema_history WHERE success) <> 20
     OR (SELECT COUNT(*) FROM flyway_schema_history WHERE version='20' AND success) <> 1
     OR (SELECT COUNT(*) FROM flyway_schema_history WHERE NOT success) > 0
  THEN RAISE EXCEPTION 'Flyway V20 nao aplicada corretamente'; END IF;
  IF (SELECT COUNT(*) FROM flyway_schema_history) <>
-       (SELECT COUNT(*) + 8 FROM gq_v20_flyway_snapshot)
- THEN RAISE EXCEPTION 'Historico Flyway foi modificado'; END IF;
+       (SELECT COUNT(*) + (20 - origem) FROM gq_v20_flyway_snapshot)
+ THEN RAISE EXCEPTION 'Quantidade de migrations inesperada'; END IF;
+ IF (SELECT COUNT(*) FROM flyway_schema_history
+     WHERE version::integer > origem AND version::integer <= 20 AND success) <> (20 - origem)
+ THEN RAISE EXCEPTION 'Sequencia Flyway incompleta'; END IF;
  IF EXISTS (
    SELECT 1 FROM gq_v20_flyway_snapshot old
    LEFT JOIN flyway_schema_history new USING (installed_rank)
@@ -175,11 +188,13 @@ BEGIN
      OR old.installed_on IS DISTINCT FROM new.installed_on
      OR old.execution_time IS DISTINCT FROM new.execution_time
      OR old.success IS DISTINCT FROM new.success
- ) THEN RAISE EXCEPTION 'Historico Flyway V1-V12 diverge'; END IF;
+ ) THEN RAISE EXCEPTION 'Historico Flyway preexistente divergiu'; END IF;
  FOR t IN SELECT * FROM gq_v20_snapshot LOOP
-  -- V18 adiciona pergunta_atual com DEFAULT 1 em partidas. Todas as colunas
-  -- anteriores permanecem inalteradas no caminho conhecido V12 -> V20.
-  expressao := CASE WHEN t.tabela='partidas'
+  IF to_regclass(format('public.%I', t.tabela)) IS NULL THEN
+    RAISE EXCEPTION 'Tabela antiga desapareceu: %', t.tabela; END IF;
+  -- Na V18 uma coluna nova, pergunta_atual, foi adicionada a partidas.
+  -- Sua exclusao somente do fingerprint preserva todas as colunas V12/V13.
+  expressao := CASE WHEN t.tabela = 'partidas'
     THEN 'to_jsonb(v) - ''pergunta_atual'''
     ELSE 'to_jsonb(v)' END;
   EXECUTE format(
@@ -198,12 +213,14 @@ BEGIN
     OR to_regclass('public.partida_respostas') IS NULL
     OR to_regclass('public.sala_partidas') IS NULL
     OR to_regclass('public.sala_votos_continuacao') IS NULL
- THEN RAISE EXCEPTION 'Tabelas V13-V19 ausentes'; END IF;
+ THEN RAISE EXCEPTION 'Tabelas esperadas nas V13 a V19 ausentes'; END IF;
  IF NOT EXISTS (
    SELECT 1 FROM information_schema.columns
    WHERE table_schema='public' AND table_name='salas' AND column_name='encerrada'
  ) THEN RAISE EXCEPTION 'Coluna salas.encerrada V20 ausente'; END IF;
-END $;
+ IF EXISTS (SELECT 1 FROM partidas WHERE pergunta_atual <> 1) THEN
+   RAISE EXCEPTION 'Valores inesperados da coluna adicionada pergunta_atual'; END IF;
+END $$;
 SELECT 'OK: dados preexistentes, historico Flyway e V20 validados' AS resultado;
 """
 
@@ -261,11 +278,15 @@ def restore_test(archive: Path, migrations: Path) -> None:
                      "--exit-on-error"], input_file=f)
         version = psql(pg, "SELECT COALESCE(MAX(version::integer),0) "
                            "FROM flyway_schema_history WHERE success", capture=True)
-        if version.stdout.strip().splitlines()[-1].strip() != "12":
-            raise ValidacaoError("Dump restaurado nao esta em Flyway V12; nenhuma migration aplicada.")
-        print("Criando snapshots das tabelas V12 e do historico no banco isolado.")
+        origem = version.stdout.strip().splitlines()[-1].strip()
+        if origem not in ("12", "13"):
+            raise ValidacaoError("Dump restaurado nao esta em Flyway V12 ou V13; nenhuma migration aplicada.")
+        falhas = psql(pg, "SELECT COUNT(*) FROM flyway_schema_history WHERE NOT success", capture=True)
+        if falhas.stdout.strip().splitlines()[-1].strip() != "0":
+            raise ValidacaoError("Dump restaurado tem falhas Flyway; nenhuma migration aplicada.")
+        print(f"Criando snapshots das tabelas V{origem} e do historico no banco isolado.")
         psql(pg, SNAPSHOT_SQL)
-        print("Executando Flyway V12 -> V20 sobre a copia restaurada (nunca na origem).")
+        print(f"Executando Flyway V{origem} -> V20 sobre a copia restaurada (nunca na origem).")
         command(["docker", "run", "--rm", "--network", net,
                  "--volume", f"{migrations}:/flyway/sql:ro", "flyway/flyway:11",
                  f"-url=jdbc:postgresql://{pg}:5432/{PG_DB}",
@@ -273,7 +294,7 @@ def restore_test(archive: Path, migrations: Path) -> None:
                  "-target=20", "-connectRetries=10", "migrate"])
         print("Verificando integridade de todas as tabelas antigas e historico Flyway.")
         psql(pg, VERIFY_SQL)
-        print("SUCESSO: backup restaurado e V12 -> V20 validado em isolamento Docker.")
+        print(f"SUCESSO: backup restaurado e V{origem} -> V20 validado em isolamento Docker.")
     finally:
         if container_started:
             subprocess.run(["docker", "rm", "-f", "--volumes", pg],
@@ -289,7 +310,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     subs = parser.add_subparsers(dest="action", required=True)
     subs.add_parser("backup", help="exportar Render com pg_dump (somente leitura)")
-    validate = subs.add_parser("restore-test", help="restaurar dump em Docker isolado e testar V12 para V20")
+    validate = subs.add_parser("restore-test", help="restaurar dump em Docker isolado e testar V12/V13 para V20")
     validate.add_argument("--backup", required=True, type=Path,
                           help="caminho para .dump gerado pelo comando backup")
     validate.add_argument("--migrations-dir", type=Path,
