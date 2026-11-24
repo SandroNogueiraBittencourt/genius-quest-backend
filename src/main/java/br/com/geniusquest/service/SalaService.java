@@ -345,13 +345,18 @@ public class SalaService {
     @Transactional(readOnly = true)
     public ResultadoPartidaDTO consultarResultado(UUID codigo, UUID partidaId, String email) {
         UUID usuarioId = usuarioAtivo(email).getId();
-        if (salas.buscarCodigo(partidaId).filter(codigo::equals).isEmpty()
-                || !(salas.possuiParticipante(codigo, usuarioId) || resultados.constaNoResultado(partidaId, usuarioId))) {
+        if (salas.buscarCodigo(partidaId).filter(codigo::equals).isEmpty()) {
             throw salaNaoEncontrada();
         }
         Partida partida = partidas.findById(partidaId).orElseThrow(this::salaNaoEncontrada);
         if (partida.getStatus() != StatusPartida.CONCLUIDA) {
+            exigirParticipante(codigo, usuarioId);
             throw new RegraTemasException(HttpStatus.CONFLICT, "O resultado estará disponível após o fim da partida");
+        }
+        // O histórico pertence aos jogadores registrados naquela partida,
+        // independentemente da composição atual da sala.
+        if (!resultados.constaNoResultado(partidaId, usuarioId)) {
+            throw salaNaoEncontrada();
         }
         return new ResultadoPartidaDTO(partidaId, resultados.classificar(partidaId));
     }
