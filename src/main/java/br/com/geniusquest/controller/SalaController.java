@@ -3,6 +3,7 @@ package br.com.geniusquest.controller;
 import br.com.geniusquest.dto.partida.ContinuacaoSalaDTO;
 import br.com.geniusquest.dto.partida.PerguntaPartidaDTO;
 import br.com.geniusquest.dto.partida.RespostaSalaDTO;
+import br.com.geniusquest.dto.partida.ResultadoPartidaDTO;
 import br.com.geniusquest.dto.partida.SalaResponseDTO;
 import br.com.geniusquest.service.SalaService;
 import br.com.geniusquest.service.SalaService.Votacao;
@@ -133,4 +134,10 @@ public class SalaController {
     }
 
     public record VotoContinuacao(@NotNull Boolean continuar) {}
+
+    @GetMapping("/api/salas/{codigo}/partidas/{partidaId}/resultado")
+    public ResultadoPartidaDTO consultarResultado(@PathVariable UUID codigo, @PathVariable UUID partidaId,
+            Principal principal) {
+        return salas.consultarResultado(codigo, partidaId, principal.getName());
+    }
 }
