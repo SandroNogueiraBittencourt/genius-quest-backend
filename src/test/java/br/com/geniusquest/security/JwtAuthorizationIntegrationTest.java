@@ -8,9 +8,6 @@ import br.com.geniusquest.entity.TokenRecuperacaoSenha;
 import br.com.geniusquest.service.CodigoRecuperacao;
 import br.com.geniusquest.service.RecuperacaoSenhaService;
 import java.time.Instant;
-import java.security.MessageDigest;
-import java.nio.charset.StandardCharsets;
-import java.util.HexFormat;
 import com.jayway.jsonpath.JsonPath;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
@@ -59,6 +56,9 @@ class JwtAuthorizationIntegrationTest {
 
     @Autowired
     private RecuperacaoSenhaService recuperacaoSenhaService;
+
+    @Autowired
+    private CodigoRecuperacao codigos;
 
     @Test
     void deveExigirJwtValidoParaConsultarPerfil() throws Exception {
@@ -156,8 +156,7 @@ class JwtAuthorizationIntegrationTest {
                 .andExpect(status().isOk());
 
         String tokenPuro = CodigoRecuperacao.gerar();
-        String hash = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-                .digest(tokenPuro.getBytes(StandardCharsets.UTF_8)));
+        String hash = codigos.hash("recuperacao", tokenPuro);
         TokenRecuperacaoSenha recuperacao = new TokenRecuperacaoSenha();
         recuperacao.setUsuario(titular);
         recuperacao.setTokenHash(hash);

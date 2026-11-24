@@ -1,11 +1,7 @@
 package br.com.geniusquest.service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
-import java.util.HexFormat;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -22,7 +18,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 @Service
 public class RecuperacaoSenhaService {
-    private static final long VALIDADE_MINUTOS = 30;
+    private final CodigoRecuperacao codigos;
 
     private final UsuarioRepository usuarioRepository;
     private final TokenRecuperacaoSenhaRepository tokenRepository;
@@ -36,6 +32,7 @@ public class RecuperacaoSenhaService {
                                    EmailService emailService,
                                    PasswordEncoder passwordEncoder,
                                    RecuperacaoRateLimitService rateLimitService,
+                                   CodigoRecuperacao codigos,
                                    @Value("${app.frontend-url}") String frontendUrl) {
         this.usuarioRepository = usuarioRepository;
         this.tokenRepository = tokenRepository;
@@ -43,6 +40,7 @@ public class RecuperacaoSenhaService {
         this.passwordEncoder = passwordEncoder;
         this.rateLimitService = rateLimitService;
         this.frontendUrl = frontendUrl;
+        this.codigos = codigos;
     }
 
     @Transactional
@@ -61,8 +59,8 @@ public class RecuperacaoSenhaService {
 
                     TokenRecuperacaoSenha t = new TokenRecuperacaoSenha();
                     t.setUsuario(usuario);
-                    t.setTokenHash(hash(codigo));
-                    t.setExpiraEm(Instant.now().plus(VALIDADE_MINUTOS, ChronoUnit.MINUTES));
+                    t.setTokenHash(codigos.hash("recuperacao", codigo));
+                    t.setExpiraEm(Instant.now().plus(CodigoRecuperacao.VALIDADE_MINUTOS, ChronoUnit.MINUTES));
                     tokenRepository.save(t);
 
                     String pagina = frontendUrl.replaceAll("/+$", "") + "/redefinir-senha";
@@ -93,7 +91,7 @@ public class RecuperacaoSenhaService {
             throw new TokenRecuperacaoInvalidoException();
         }
         String normalizado = CodigoRecuperacao.normalizar(codigo);
-        TokenRecuperacaoSenha t = tokenRepository.findByTokenHash(hash(normalizado))
+        TokenRecuperacaoSenha t = tokenRepository.findByTokenHash(codigos.hash("recuperacao", normalizado))
                 .filter(x -> !x.getUsado() && !x.expirado())
                 .orElseThrow(TokenRecuperacaoInvalidoException::new);
 
@@ -108,12 +106,4 @@ public class RecuperacaoSenhaService {
         tokenRepository.invalidarTokensAbertos(usuario.getId());
     }
 
-    private String hash(String token) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(md.digest(token.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException(e);
-        }
-    }
 }

@@ -1,49 +1,50 @@
 package br.com.geniusquest.service;
 
+import java.nio.charset.StandardCharsets;
 import java.security.SecureRandom;
-import java.util.Locale;
+import java.util.Base64;
+import java.util.HexFormat;
+import javax.crypto.Mac;
+import javax.crypto.spec.SecretKeySpec;
 
-/** Codigo aleatorio de 80 bits, para digitacao manual. Nenhum segredo em links. */
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+@Component
 public final class CodigoRecuperacao {
-    private static final String ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+    static final long VALIDADE_MINUTOS = 15;
+    private static final int DIGITOS = 10;
     private static final SecureRandom RANDOM = new SecureRandom();
+    private final SecretKeySpec chave;
 
-    private CodigoRecuperacao() {}
+    public CodigoRecuperacao(@Value("${app.jwt.secret}") String segredoBase64) {
+        chave = new SecretKeySpec(Base64.getDecoder().decode(segredoBase64), "HmacSHA256");
+    }
 
     public static String gerar() {
-        byte[] dados = new byte[10]; // 80 bits de entropia
-        RANDOM.nextBytes(dados);
-        StringBuilder resultado = new StringBuilder(16);
-        int buffer = 0;
-        int bits = 0;
-        for (byte dado : dados) {
-            buffer = (buffer << 8) | (dado & 0xff);
-            bits += 8;
-            while (bits >= 5) {
-                bits -= 5;
-                resultado.append(ALFABETO.charAt((buffer >>> bits) & 31));
-                buffer &= (1 << bits) - 1;
-            }
+        StringBuilder codigo = new StringBuilder(DIGITOS);
+        for (int i = 0; i < DIGITOS; i++) {
+            codigo.append(RANDOM.nextInt(10));
         }
-        return resultado.toString();
+        return codigo.toString();
     }
 
     public static String normalizar(String codigo) {
-        if (codigo == null) return "";
-        return codigo.replaceAll("[\\s-]", "").toUpperCase(Locale.ROOT);
+        return codigo == null ? "" : codigo.replaceAll("[\\s-]", "");
     }
 
     public static boolean formatoValido(String codigo) {
-        String normalizado = normalizar(codigo);
-        if (normalizado.length() != 16) return false;
-        for (int i = 0; i < normalizado.length(); i++) {
-            if (ALFABETO.indexOf(normalizado.charAt(i)) < 0) return false;
-        }
-        return true;
+        return normalizar(codigo).matches("[0-9]{" + DIGITOS + "}");
     }
 
-    public static String paraExibicao(String codigo) {
-        return codigo.substring(0, 4) + "-" + codigo.substring(4, 8) + "-"
-                + codigo.substring(8, 12) + "-" + codigo.substring(12, 16);
+    public String hash(String finalidade, String codigo) {
+        try {
+            Mac mac = Mac.getInstance("HmacSHA256");
+            mac.init(chave);
+            return HexFormat.of().formatHex(
+                    mac.doFinal((finalidade + ":" + normalizar(codigo)).getBytes(StandardCharsets.UTF_8)));
+        } catch (java.security.GeneralSecurityException erro) {
+            throw new IllegalStateException("HMAC indisponível", erro);
+        }
     }
 }
