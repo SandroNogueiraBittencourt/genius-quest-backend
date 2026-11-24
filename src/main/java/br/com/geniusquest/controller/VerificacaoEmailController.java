@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import java.security.Principal;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -39,6 +40,15 @@ public class VerificacaoEmailController {
         verificacao.reenviar(pedido.email(),
                 RecuperarSenhaController.origem(request, confiarIpCloudflare));
     }
+
+    @PostMapping("/confirmar-troca-email")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void confirmarTroca(@Valid @RequestBody Troca pedido, Principal principal, HttpServletRequest request) {
+        verificacao.confirmarTroca(principal.getName(), pedido.codigo(),
+                RecuperarSenhaController.origem(request, confiarIpCloudflare));
+    }
+
+    public record Troca(@NotBlank @Size(max = 64) String codigo) {}
 
     public record Confirmacao(@NotBlank @Email @Size(max = 150) String email,
             @NotBlank @Size(max = 64) String codigo) {}

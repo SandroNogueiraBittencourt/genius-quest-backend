@@ -1,7 +1,11 @@
 package br.com.geniusquest.service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HexFormat;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,7 +22,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 @Service
 public class RecuperacaoSenhaService {
-    private final CodigoRecuperacao codigos;
+    private static final long VALIDADE_MINUTOS = 30;
 
     private final UsuarioRepository usuarioRepository;
     private final TokenRecuperacaoSenhaRepository tokenRepository;
@@ -32,7 +36,6 @@ public class RecuperacaoSenhaService {
                                    EmailService emailService,
                                    PasswordEncoder passwordEncoder,
                                    RecuperacaoRateLimitService rateLimitService,
-                                   CodigoRecuperacao codigos,
                                    @Value("${app.frontend-url}") String frontendUrl) {
         this.usuarioRepository = usuarioRepository;
         this.tokenRepository = tokenRepository;
@@ -40,7 +43,6 @@ public class RecuperacaoSenhaService {
         this.passwordEncoder = passwordEncoder;
         this.rateLimitService = rateLimitService;
         this.frontendUrl = frontendUrl;
-        this.codigos = codigos;
     }
 
     @Transactional
@@ -50,7 +52,7 @@ public class RecuperacaoSenhaService {
             return;
         }
         // Nunca revela se o e-mail existe: o controller responde igual nos dois casos
-        usuarioRepository.findByEmailIgnoreCase(email)
+        usuarioRepository.bloquearPorEmail(email)
                 .filter(Usuario::getAtivo)
                 .ifPresent(usuario -> {
                     tokenRepository.invalidarTokensAbertos(usuario.getId());
@@ -59,8 +61,8 @@ public class RecuperacaoSenhaService {
 
                     TokenRecuperacaoSenha t = new TokenRecuperacaoSenha();
                     t.setUsuario(usuario);
-                    t.setTokenHash(codigos.hash("recuperacao", codigo));
-                    t.setExpiraEm(Instant.now().plus(CodigoRecuperacao.VALIDADE_MINUTOS, ChronoUnit.MINUTES));
+                    t.setTokenHash(hash(codigo));
+                    t.setExpiraEm(Instant.now().plus(VALIDADE_MINUTOS, ChronoUnit.MINUTES));
                     tokenRepository.save(t);
 
                     String pagina = frontendUrl.replaceAll("/+$", "") + "/redefinir-senha";
@@ -91,11 +93,16 @@ public class RecuperacaoSenhaService {
             throw new TokenRecuperacaoInvalidoException();
         }
         String normalizado = CodigoRecuperacao.normalizar(codigo);
-        TokenRecuperacaoSenha t = tokenRepository.findByTokenHash(codigos.hash("recuperacao", normalizado))
+        String hash = hash(normalizado);
+        var usuarioId = tokenRepository.buscarUsuarioIdPorHash(hash)
+                .orElseThrow(TokenRecuperacaoInvalidoException::new);
+        Usuario usuario = usuarioRepository.bloquearPorId(usuarioId)
+                .filter(conta -> Boolean.TRUE.equals(conta.getAtivo()))
+                .orElseThrow(TokenRecuperacaoInvalidoException::new);
+        TokenRecuperacaoSenha t = tokenRepository.findByTokenHash(hash)
                 .filter(x -> !x.getUsado() && !x.expirado())
                 .orElseThrow(TokenRecuperacaoInvalidoException::new);
 
-        Usuario usuario = t.getUsuario();
         usuario.setSenha(passwordEncoder.encode(novaSenha));
         usuario.incrementarVersaoCredenciais();
         usuarioRepository.save(usuario);
@@ -106,4 +113,12 @@ public class RecuperacaoSenhaService {
         tokenRepository.invalidarTokensAbertos(usuario.getId());
     }
 
+    private String hash(String token) {
+        try {
+            MessageDigest md = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(md.digest(token.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
+        }
+    }
 }

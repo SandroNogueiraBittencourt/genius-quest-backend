@@ -17,7 +17,18 @@ public record UsuarioAtualizacaoDTO(
                 max = 150,
                 message = "O e-mail deve possuir no máximo 150 caracteres"
         )
-        String email
+        String email,
+
+        @Size(max = 72)
+        String senhaAtual
 
 ) {
+    public UsuarioAtualizacaoDTO(String nome, String email) {
+        this(nome, email, null);
+    }
+
+    @Override
+    public String toString() {
+        return "UsuarioAtualizacaoDTO[redigido]";
+    }
 }

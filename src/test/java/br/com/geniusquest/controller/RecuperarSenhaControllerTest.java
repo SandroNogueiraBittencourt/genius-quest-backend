@@ -85,20 +85,20 @@ class RecuperarSenhaControllerTest {
     void deveRetornar204AoRedefinirSenha() throws Exception {
         mvc.perform(post("/api/auth/redefinir-senha").contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"token":"0123456789","novaSenha":"NovaSenha123!"}
+                                {"token":"ABCD2345EFGH6789","novaSenha":"NovaSenha123!"}
                                 """))
                 .andExpect(status().isNoContent())
                 .andExpect(content().string(""));
-        verify(service).redefinir("0123456789", "NovaSenha123!", "127.0.0.1");
+        verify(service).redefinir("ABCD2345EFGH6789", "NovaSenha123!", "127.0.0.1");
     }
 
     @Test
     void deveRetornar400ParaTokenInvalido() throws Exception {
         var erro = new TokenRecuperacaoInvalidoException();
-        doThrow(erro).when(service).redefinir("0123456789", "NovaSenha123!", "127.0.0.1");
+        doThrow(erro).when(service).redefinir("ABCD2345EFGH6789", "NovaSenha123!", "127.0.0.1");
         mvc.perform(post("/api/auth/redefinir-senha").contentType(MediaType.APPLICATION_JSON)
                         .content("""
-                                {"token":"0123456789","novaSenha":"NovaSenha123!"}
+                                {"token":"ABCD2345EFGH6789","novaSenha":"NovaSenha123!"}
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.status").value(400))

@@ -13,6 +13,9 @@ import org.springframework.data.repository.query.Param;
 import br.com.geniusquest.entity.TokenRecuperacaoSenha;
 
 public interface TokenRecuperacaoSenhaRepository extends JpaRepository<TokenRecuperacaoSenha, UUID>{
+    @Query("select t.usuario.id from TokenRecuperacaoSenha t where t.tokenHash = :hash")
+    Optional<UUID> buscarUsuarioIdPorHash(@Param("hash") String hash);
+
     // Bloqueio impede consumo simultaneo do mesmo token.
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     Optional<TokenRecuperacaoSenha> findByTokenHash(String tokenHash);

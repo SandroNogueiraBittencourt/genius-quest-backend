@@ -35,7 +35,7 @@ public class EmailService {
             String assunto = "Genius Quest: confirme seu e-mail";
             String html = emailComCodigo(nome, codigo, "Confirme seu e-mail",
                     "Use o código abaixo para confirmar seu endereço de e-mail.",
-                    "", "Se você não solicitou esta confirmação, ignore este e-mail.");
+                    "", "Se você não solicitou esta confirmação, ignore este e-mail.", CodigoVerificacaoEmail.VALIDADE_MINUTOS);
             if ("brevo-api".equalsIgnoreCase(provedor)) {
                 brevoApi.enviar(destinatario, nome, remetente, assunto, html);
             } else if ("smtp".equalsIgnoreCase(provedor)) {
@@ -85,9 +85,9 @@ public class EmailService {
                        border-radius:12px;background:#ffb347;color:#1a1530;font-weight:bold">
                        Abrir página de redefinição</a></p>
                     """.formatted(HtmlUtils.htmlEscape(urlPagina));
-            String html = emailComCodigo(nome, codigo, "Recuperar acesso",
+            String html = emailComCodigo(nome, CodigoRecuperacao.paraExibicao(CodigoRecuperacao.normalizar(codigo)), "Recuperar acesso",
                     "Recebemos um pedido de redefinição da sua senha. Digite o código no aplicativo.",
-                    acao, "Se você não solicitou a recuperação, ignore este e-mail.");
+                    acao, "Se você não solicitou a recuperação, ignore este e-mail.", 30);
             if ("brevo-api".equalsIgnoreCase(provedor)) {
                 brevoApi.enviar(destinatario, nome, remetente, html);
             } else if ("smtp".equalsIgnoreCase(provedor)) {
@@ -102,7 +102,7 @@ public class EmailService {
     }
 
     private String emailComCodigo(String nome, String codigo, String titulo, String intro,
-            String acao, String rodape) {
+            String acao, String rodape, long validade) {
         return """
                 <!doctype html>
                 <html lang="pt-BR">
@@ -132,7 +132,7 @@ public class EmailService {
                 .replace("{{TITULO}}", titulo)
                 .replace("{{INTRO}}", intro)
                 .replace("{{CODIGO}}", codigo)
-                .replace("{{VALIDADE}}", Long.toString(CodigoRecuperacao.VALIDADE_MINUTOS))
+                .replace("{{VALIDADE}}", Long.toString(validade))
                 .replace("{{ACAO}}", acao)
                 .replace("{{RODAPE}}", rodape)
                 .replace("{{NOME}}", HtmlUtils.htmlEscape(nome));

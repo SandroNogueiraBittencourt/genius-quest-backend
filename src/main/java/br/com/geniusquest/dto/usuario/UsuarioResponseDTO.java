@@ -14,7 +14,12 @@ public record UsuarioResponseDTO(
         Integer moedas,
         Boolean ativo,
         Instant criadoEm,
-        Instant atualizadoEm
+        Instant atualizadoEm,
+        boolean emailVerificado
 
 ) {
+    public UsuarioResponseDTO(UUID id, String nome, String email, PerfilUsuario perfil,
+            Integer moedas, Boolean ativo, Instant criadoEm, Instant atualizadoEm) {
+        this(id, nome, email, perfil, moedas, ativo, criadoEm, atualizadoEm, true);
+    }
 }

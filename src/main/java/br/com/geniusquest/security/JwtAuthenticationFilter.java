@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -69,9 +70,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String email =
                     jwtService.extrairEmail(token);
 
-            UserDetails usuario =
-                    usuarioDetailsService
-                            .loadUserByUsername(email);
+            UserDetails usuario;
+            try {
+                usuario = usuarioDetailsService.loadUserByUsername(email);
+            } catch (UsernameNotFoundException ex) {
+                filterChain.doFilter(request, response);
+                return;
+            }
 
             Usuario entidade = usuarioRepository.findByEmailIgnoreCase(email).orElse(null);
             // Uma redefinicao de senha incrementa a versao no banco.

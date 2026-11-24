@@ -48,6 +48,14 @@ public class RecuperacaoRateLimitService {
         return limitarEnvio("verificacao:", email, origem);
     }
 
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean permitirSolicitacaoTroca(java.util.UUID usuarioId) {
+        Instant agora = Instant.now();
+        Instant inicio = Instant.ofEpochSecond(
+                (agora.getEpochSecond() / JANELA_SEGUNDOS) * JANELA_SEGUNDOS);
+        return incrementar(hmac("troca-email:" + usuarioId), inicio) <= LIMITE_EMAIL;
+    }
+
     private boolean limitarEnvio(String escopo, String email, String origem) {
         String emailNormalizado = email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
         String ip = origem == null || origem.isBlank() ? "indefinido" : origem.trim();

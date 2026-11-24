@@ -13,8 +13,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
 import java.time.temporal.ChronoUnit;
+import java.util.HexFormat;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,13 +33,12 @@ class RecuperacaoSenhaServiceTest {
     @Mock private PasswordEncoder encoder;
     @Mock private RecuperacaoRateLimitService limiter;
 
-    private final CodigoRecuperacao codigos = new CodigoRecuperacao("dGVzdGU=");
     private RecuperacaoSenhaService service;
     private Usuario usuario;
 
     @BeforeEach
     void setUp() {
-        service = new RecuperacaoSenhaService(usuarios, tokens, emails, encoder, limiter, codigos, "http://localhost:5173");
+        service = new RecuperacaoSenhaService(usuarios, tokens, emails, encoder, limiter, "http://localhost:5173");
         lenient().when(limiter.permitir(anyString(), anyString())).thenReturn(true);
         lenient().when(limiter.permitirValidacao(anyString(), anyString())).thenReturn(true);
         usuario = new Usuario();
@@ -45,11 +47,13 @@ class RecuperacaoSenhaServiceTest {
         usuario.setEmail("teste@example.com");
         usuario.setAtivo(true);
         usuario.setSenha("hash-antigo");
+        lenient().when(tokens.buscarUsuarioIdPorHash(anyString())).thenReturn(Optional.of(usuario.getId()));
+        lenient().when(usuarios.bloquearPorId(usuario.getId())).thenReturn(Optional.of(usuario));
     }
 
     @Test
     void deveGerarTokenEEnviarLinkParaEmailCadastrado() throws Exception {
-        when(usuarios.findByEmailIgnoreCase(usuario.getEmail())).thenReturn(Optional.of(usuario));
+        when(usuarios.bloquearPorEmail(usuario.getEmail())).thenReturn(Optional.of(usuario));
         Instant antes = Instant.now();
 
         service.solicitar(usuario.getEmail(), "127.0.0.1");
@@ -63,17 +67,17 @@ class RecuperacaoSenhaServiceTest {
         assertEquals("http://localhost:5173/redefinir-senha", paginaCaptor.getValue());
         assertFalse(paginaCaptor.getValue().contains("token="));
         String token = codigoCaptor.getValue();
-        assertTrue(token.matches("[0-9]{10}"));
+        assertTrue(token.matches("[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{16}"));
         assertSame(usuario, salvo.getValue().getUsuario());
         assertEquals(hash(token), salvo.getValue().getTokenHash());
         assertNotEquals(token, salvo.getValue().getTokenHash());
-        assertFalse(salvo.getValue().getExpiraEm().isBefore(antes.plus(15, ChronoUnit.MINUTES)));
-        assertFalse(salvo.getValue().getExpiraEm().isAfter(Instant.now().plus(15, ChronoUnit.MINUTES)));
+        assertFalse(salvo.getValue().getExpiraEm().isBefore(antes.plus(30, ChronoUnit.MINUTES)));
+        assertFalse(salvo.getValue().getExpiraEm().isAfter(Instant.now().plus(30, ChronoUnit.MINUTES)));
     }
 
     @Test
     void naoDeveGerarTokenParaEmailInexistente() {
-        when(usuarios.findByEmailIgnoreCase(usuario.getEmail())).thenReturn(Optional.empty());
+        when(usuarios.bloquearPorEmail(usuario.getEmail())).thenReturn(Optional.empty());
         assertDoesNotThrow(() -> service.solicitar(usuario.getEmail(), "127.0.0.1"));
         verifyNoInteractions(tokens, emails, encoder);
     }
@@ -81,14 +85,14 @@ class RecuperacaoSenhaServiceTest {
     @Test
     void naoDeveGerarTokenParaUsuarioInativo() {
         usuario.setAtivo(false);
-        when(usuarios.findByEmailIgnoreCase(usuario.getEmail())).thenReturn(Optional.of(usuario));
+        when(usuarios.bloquearPorEmail(usuario.getEmail())).thenReturn(Optional.of(usuario));
         service.solicitar(usuario.getEmail(), "127.0.0.1");
         verifyNoInteractions(tokens, emails, encoder);
     }
 
     @Test
     void deveInvalidarTokensAnterioresAntesDeSalvarNovoToken() {
-        when(usuarios.findByEmailIgnoreCase(usuario.getEmail())).thenReturn(Optional.of(usuario));
+        when(usuarios.bloquearPorEmail(usuario.getEmail())).thenReturn(Optional.of(usuario));
         service.solicitar(usuario.getEmail(), "127.0.0.1");
         var ordem = inOrder(tokens, emails);
         ordem.verify(tokens).invalidarTokensAbertos(usuario.getId());
@@ -99,10 +103,10 @@ class RecuperacaoSenhaServiceTest {
     @Test
     void deveCodificarNovaSenhaEConsumirTokenValido() throws Exception {
         TokenRecuperacaoSenha token = token(false, Instant.now().plusSeconds(600));
-        when(tokens.findByTokenHash(hash("0123456789"))).thenReturn(Optional.of(token));
+        when(tokens.findByTokenHash(hash("ABCD2345EFGH6789"))).thenReturn(Optional.of(token));
         when(encoder.encode("NovaSenha123!")).thenReturn("hash-novo");
 
-        service.redefinir("0123456789", "NovaSenha123!", "127.0.0.1");
+        service.redefinir("ABCD2345EFGH6789", "NovaSenha123!", "127.0.0.1");
 
         verify(encoder).encode("NovaSenha123!");
         assertEquals("hash-novo", usuario.getSenha());
@@ -115,18 +119,18 @@ class RecuperacaoSenhaServiceTest {
 
     @Test
     void deveRejeitarTokenInexistenteSemAlterarSenha() throws Exception {
-        when(tokens.findByTokenHash(hash("0123456789"))).thenReturn(Optional.empty());
+        when(tokens.buscarUsuarioIdPorHash(hash("ABCD2345EFGH6789"))).thenReturn(Optional.empty());
         assertThrows(TokenRecuperacaoInvalidoException.class,
-                () -> service.redefinir("0123456789", "NovaSenha123!", "127.0.0.1"));
+                () -> service.redefinir("ABCD2345EFGH6789", "NovaSenha123!", "127.0.0.1"));
         verificarSenhaPreservada();
     }
 
     @Test
     void deveRejeitarTokenExpiradoSemAlterarSenha() throws Exception {
         TokenRecuperacaoSenha token = token(false, Instant.now().minusSeconds(60));
-        when(tokens.findByTokenHash(hash("0123456789"))).thenReturn(Optional.of(token));
+        when(tokens.findByTokenHash(hash("ABCD2345EFGH6789"))).thenReturn(Optional.of(token));
         assertThrows(TokenRecuperacaoInvalidoException.class,
-                () -> service.redefinir("0123456789", "NovaSenha123!", "127.0.0.1"));
+                () -> service.redefinir("ABCD2345EFGH6789", "NovaSenha123!", "127.0.0.1"));
         assertFalse(token.getUsado());
         verificarSenhaPreservada();
     }
@@ -134,9 +138,9 @@ class RecuperacaoSenhaServiceTest {
     @Test
     void deveRejeitarTokenJaUsadoSemAlterarSenha() throws Exception {
         TokenRecuperacaoSenha token = token(true, Instant.now().plusSeconds(600));
-        when(tokens.findByTokenHash(hash("0123456789"))).thenReturn(Optional.of(token));
+        when(tokens.findByTokenHash(hash("ABCD2345EFGH6789"))).thenReturn(Optional.of(token));
         assertThrows(TokenRecuperacaoInvalidoException.class,
-                () -> service.redefinir("0123456789", "NovaSenha123!", "127.0.0.1"));
+                () -> service.redefinir("ABCD2345EFGH6789", "NovaSenha123!", "127.0.0.1"));
         assertTrue(token.getUsado());
         verificarSenhaPreservada();
     }
@@ -151,7 +155,7 @@ class RecuperacaoSenhaServiceTest {
 
     @Test
     void soEnviaEmailAposCommitDaTransacao() {
-        when(usuarios.findByEmailIgnoreCase(usuario.getEmail())).thenReturn(Optional.of(usuario));
+        when(usuarios.bloquearPorEmail(usuario.getEmail())).thenReturn(Optional.of(usuario));
         org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
         org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
         try {
@@ -170,25 +174,26 @@ class RecuperacaoSenhaServiceTest {
 
     @Test
     void deveBloquearTentativasDeValidacaoExcessivas() {
-        when(limiter.permitirValidacao("0123456789", "127.0.0.1"))
+        when(limiter.permitirValidacao("ABCD2345EFGH6789", "127.0.0.1"))
                 .thenReturn(false);
         assertThrows(TokenRecuperacaoInvalidoException.class,
-                () -> service.redefinir("0123456789", "NovaSenha123!", "127.0.0.1"));
+                () -> service.redefinir("ABCD2345EFGH6789", "NovaSenha123!", "127.0.0.1"));
         verifyNoInteractions(tokens, usuarios, emails, encoder);
     }
 
     @Test
     void aceitaCodigoComHifensSemAlterarHashPersistido() throws Exception {
         TokenRecuperacaoSenha codigo = token(false, Instant.now().plusSeconds(600));
-        when(tokens.findByTokenHash(hash("0123456789"))).thenReturn(Optional.of(codigo));
+        when(tokens.findByTokenHash(hash("ABCD2345EFGH6789"))).thenReturn(Optional.of(codigo));
         when(encoder.encode("NovaSenha123!")).thenReturn("nova-senha-hash");
-        service.redefinir("01234-56789", "NovaSenha123!", "127.0.0.1");
+        service.redefinir("ABCD-2345-EFGH-6789", "NovaSenha123!", "127.0.0.1");
         assertTrue(codigo.getUsado());
     }
 
     private void verificarSenhaPreservada() {
         assertEquals("hash-antigo", usuario.getSenha());
-        verifyNoInteractions(usuarios, encoder, emails);
+        verifyNoInteractions(encoder, emails);
+        verify(usuarios, never()).save(any());
         verify(tokens, never()).save(any());
     }
 
@@ -200,7 +205,8 @@ class RecuperacaoSenhaServiceTest {
         return token;
     }
 
-    private String hash(String valor) {
-        return codigos.hash("recuperacao", valor);
+    private String hash(String valor) throws Exception {
+        return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
+                .digest(valor.getBytes(StandardCharsets.UTF_8)));
     }
 }
