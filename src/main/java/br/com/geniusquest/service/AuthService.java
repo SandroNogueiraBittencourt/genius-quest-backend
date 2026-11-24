@@ -3,10 +3,12 @@ package br.com.geniusquest.service;
 import br.com.geniusquest.dto.auth.LoginRequestDTO;
 import br.com.geniusquest.dto.auth.LoginResponseDTO;
 import br.com.geniusquest.entity.Usuario;
+import br.com.geniusquest.exception.RegraTemasException;
 import br.com.geniusquest.repository.UsuarioRepository;
 import br.com.geniusquest.security.JwtService;
 
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.http.HttpStatus;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.stereotype.Service;
@@ -44,6 +46,9 @@ public class AuthService {
         Usuario usuario = usuarioRepository
                 .findByEmailIgnoreCase(email)
                 .orElseThrow();
+        if (!usuario.isEmailVerificado()) {
+            throw new RegraTemasException(HttpStatus.FORBIDDEN, "Confirme seu e-mail antes de entrar");
+        }
 
         String token =
                 jwtService.gerarToken(usuario);
