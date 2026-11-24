@@ -44,6 +44,10 @@ public class RecuperarSenhaController {
     }
     /** Nunca confiar em X-Forwarded-For recebido diretamente do cliente. */
     private String origem(HttpServletRequest request) {
+        return origem(request, confiarIpCloudflare);
+    }
+
+    static String origem(HttpServletRequest request, boolean confiarIpCloudflare) {
         String origem = request.getRemoteAddr();
         // Nao usar X-Forwarded-For diretamente: o cliente pode inserir valores falsos.
         // O cabecalho CF-Connecting-IP e confiavel APENAS no ingress publico do Render.

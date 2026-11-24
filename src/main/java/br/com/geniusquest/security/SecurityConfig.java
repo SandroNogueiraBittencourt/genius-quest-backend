@@ -69,7 +69,9 @@ public class SecurityConfig {
                                                 .requestMatchers(
                                                                 HttpMethod.POST,
                                                                 "/api/auth/esqueci-senha",
-                                                                "/api/auth/redefinir-senha")
+                                                                "/api/auth/redefinir-senha",
+                                                                "/api/auth/verificar-email",
+                                                                "/api/auth/reenviar-verificacao")
                                                 .permitAll()
 
                                                 .requestMatchers(

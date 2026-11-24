@@ -7,6 +7,7 @@ import br.com.geniusquest.entity.Usuario;
 import br.com.geniusquest.exception.EmailJaCadastradoException;
 import br.com.geniusquest.mapper.UsuarioMapper;
 import br.com.geniusquest.repository.UsuarioRepository;
+import br.com.geniusquest.repository.TokenRecuperacaoSenhaRepository;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,15 +27,20 @@ public class UsuarioService {
     private final UsuarioRepository repository;
     private final UsuarioMapper mapper;
     private final PasswordEncoder passwordEncoder;
+    private final VerificacaoEmailService verificacao;
+    private final TokenRecuperacaoSenhaRepository recuperacao;
 
     public UsuarioService(
             UsuarioRepository repository,
             UsuarioMapper mapper,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder, VerificacaoEmailService verificacao,
+            TokenRecuperacaoSenhaRepository recuperacao) {
 
         this.repository = repository;
         this.mapper = mapper;
         this.passwordEncoder = passwordEncoder;
+        this.verificacao = verificacao;
+        this.recuperacao = recuperacao;
     }
 
     @Transactional
@@ -52,11 +58,14 @@ public class UsuarioService {
 
         usuario.setNome(dto.nome().trim());
         usuario.setEmail(email);
+        usuario.setEmailVerificado(false);
 
         usuario.setSenha(
                 passwordEncoder.encode(dto.senha()));
 
         Usuario usuarioSalvo = repository.save(usuario);
+        repository.flush();
+        verificacao.emitir(usuarioSalvo);
 
         return mapper.toResponse(usuarioSalvo);
     }
@@ -67,7 +76,7 @@ public class UsuarioService {
             UUID id,
             UsuarioAtualizacaoDTO dto) {
 
-        Usuario usuario = repository.findById(id)
+        Usuario usuario = repository.bloquearPorId(id)
                 .orElseThrow(UsuarioNaoEncontradoException::new);
 
         if (dto.nome() != null) {
@@ -87,7 +96,14 @@ public class UsuarioService {
                         throw new EmailJaCadastradoException();
                     });
 
-            usuario.setEmail(novoEmail);
+            if (!novoEmail.equalsIgnoreCase(usuario.getEmail())) {
+                usuario.setEmail(novoEmail);
+                usuario.setEmailVerificado(false);
+                usuario.incrementarVersaoCredenciais();
+                repository.flush();
+                recuperacao.invalidarTokensAbertos(id);
+                verificacao.emitir(usuario);
+            }
         }
 
         return mapper.toResponse(usuario);
