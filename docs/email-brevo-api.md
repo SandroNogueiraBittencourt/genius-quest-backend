@@ -6,7 +6,7 @@ O Genius Quest usa a API HTTPS da Brevo (porta 443) no backend hospedado no Rend
 
 - Endpoint de envio: `POST https://api.brevo.com/v3/smtp/email`.
 - Provedor de envio: `MAIL_PROVIDER=brevo-api` no Render; SMTP continua disponível para testes locais com Mailpit.
-- O fluxo atual utiliza **código manual de 16 caracteres**, gerado aleatoriamente, com validade de **30 minutos** e **uso único**.
+- O fluxo atual utiliza **código manual de 10 dígitos**, gerado aleatoriamente, com validade de **15 minutos** e **uso único**.
 - A aplicação armazena o **hash SHA-256** do código no PostgreSQL; o código em claro é utilizado transitoriamente no envio e na entrada do formulário, mas não é persistido no banco.
 - O e-mail contém o código e um botão para a **página** de redefinição. O código **não é incluído no link**, na query string, no fragmento nem no path.
 
