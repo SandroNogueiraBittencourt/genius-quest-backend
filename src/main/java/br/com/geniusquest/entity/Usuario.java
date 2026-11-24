@@ -35,6 +35,17 @@ public class Usuario {
     @Column(name = "versao_credenciais", nullable = false)
     private Long versaoCredenciais = 0L;
 
+    @Column(name = "email_verificado", nullable = false)
+    private boolean emailVerificado = true;
+
+    public boolean isEmailVerificado() {
+        return emailVerificado;
+    }
+
+    public void setEmailVerificado(boolean emailVerificado) {
+        this.emailVerificado = emailVerificado;
+    }
+
     @Column(name = "criado_em", nullable = false, updatable = false)
     private Instant criadoEm;
 
