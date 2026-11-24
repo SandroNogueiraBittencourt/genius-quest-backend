@@ -7,5 +7,5 @@ import java.util.UUID;
 public record PartidaResponseDTO(
         UUID id, UUID cicloId, String cicloNome, UUID temaId,
         String temaTitulo, String categoriaNome, StatusPartida status,
-        Instant criadoEm
+        Instant criadoEm, UUID codigoSala
 ) {}

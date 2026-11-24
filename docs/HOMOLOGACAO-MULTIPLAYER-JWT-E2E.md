@@ -13,9 +13,15 @@ tres contas ficticias (anfitriao, convidado e intruso).
    expoe o gabarito nem para o convidado.
 4. Os participantes registram 20 respostas no total; respostas duplicadas
    e acesso de intruso nao autenticado/sem ingresso sao bloqueados.
-5. A partida termina apos 10 perguntas, os dois votam por continuar,
-   a votacao do proximo tema e reaberta, e o anfitriao fecha a sala.
-6. Um segundo teste verifica isolamento do lobby e rotas sem JWT.
+5. O placar final e disponibilizado somente apos a conclusao: o anfitriao
+   soma 200 pontos em dez questoes medias, o convidado soma zero, e as duas
+   classificacoes sao conferidas no banco e na resposta da API.
+6. O convidado encontra a partida em "Minhas partidas", com seu codigo de
+   sala. Os jogadores registrados preservam o acesso ao placar historico.
+7. Os dois votam por continuar; a nova votacao fica sem votos anteriores.
+   O placar da rodada concluida permanece igual apos a continuacao e o
+   encerramento da sala, sem depender de seu estado atual.
+8. Um segundo teste verifica isolamento do lobby e rotas sem JWT.
 
 ## Isolamento
 

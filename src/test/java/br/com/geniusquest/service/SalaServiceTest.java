@@ -1,6 +1,7 @@
 package br.com.geniusquest.service;
 
 import br.com.geniusquest.dto.partida.PerguntaPartidaDTO;
+import br.com.geniusquest.dto.partida.ResultadoPartidaDTO;
 import br.com.geniusquest.dto.partida.SalaResponseDTO.Participante;
 import br.com.geniusquest.entity.Partida;
 import br.com.geniusquest.entity.StatusPartida;
@@ -10,6 +11,7 @@ import br.com.geniusquest.entity.Usuario;
 import br.com.geniusquest.exception.RegraTemasException;
 import br.com.geniusquest.repository.PartidaPerguntaRepository;
 import br.com.geniusquest.repository.PartidaRepository;
+import br.com.geniusquest.repository.ResultadoPartidaRepository;
 import br.com.geniusquest.repository.SalaRepository;
 import br.com.geniusquest.repository.SalaRepository.Sala;
 import br.com.geniusquest.repository.TemaRepository;
@@ -38,6 +40,7 @@ class SalaServiceTest {
     @Mock private TemaRepository temas;
     @Mock private PartidaService preparacao;
     @Mock private PartidaPerguntaRepository perguntasDaPartida;
+    @Mock private ResultadoPartidaRepository resultados;
     @Mock private Partida partida;
     @Mock private Tema tema;
     @InjectMocks private SalaService service;
@@ -186,6 +189,36 @@ class SalaServiceTest {
 
         assertEquals(HttpStatus.FORBIDDEN, erro.getStatus());
         verifyNoInteractions(salas, partidas);
+    }
+
+    @Test
+    void placarHistoricoExigeRegistroNaPartidaConcluida() {
+        identificarUsuario(true);
+        when(salas.buscarCodigo(partidaId)).thenReturn(Optional.of(codigo));
+        when(partidas.findById(partidaId)).thenReturn(Optional.of(partida));
+        when(partida.getStatus()).thenReturn(StatusPartida.CONCLUIDA);
+        when(resultados.constaNoResultado(partidaId, usuarioId)).thenReturn(false);
+
+        var erro = assertThrows(RegraTemasException.class,
+                () -> service.consultarResultado(codigo, partidaId, EMAIL));
+
+        assertEquals(HttpStatus.NOT_FOUND, erro.getStatus());
+        verify(resultados, never()).classificar(partidaId);
+    }
+
+    @Test
+    void jogadorRegistradoMantemAcessoAoPlacarHistorico() {
+        identificarUsuario(true);
+        when(salas.buscarCodigo(partidaId)).thenReturn(Optional.of(codigo));
+        when(partidas.findById(partidaId)).thenReturn(Optional.of(partida));
+        when(partida.getStatus()).thenReturn(StatusPartida.CONCLUIDA);
+        when(resultados.constaNoResultado(partidaId, usuarioId)).thenReturn(true);
+        var classificacao = List.of(new ResultadoPartidaDTO.Jogador(usuarioId,
+                "Jogador", 1, 200, 10, 0));
+        when(resultados.classificar(partidaId)).thenReturn(classificacao);
+
+        assertEquals(new ResultadoPartidaDTO(partidaId, classificacao),
+                service.consultarResultado(codigo, partidaId, EMAIL));
     }
 
     private Usuario identificarUsuario(boolean ativo) {

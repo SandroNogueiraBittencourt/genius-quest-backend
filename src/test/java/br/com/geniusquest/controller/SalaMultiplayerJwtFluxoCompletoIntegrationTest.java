@@ -145,6 +145,10 @@ class SalaMultiplayerJwtFluxoCompletoIntegrationTest {
                 .andExpect(jsonPath("$.status").value("PREPARACAO"))
                 .andReturn().getResponse().getContentAsString()).get("partidaId").asText();
         assertNotNull(partidaId);
+        String resultado = sala + "/partidas/" + partidaId + "/resultado";
+        mvc.perform(get(resultado)).andExpect(status().isUnauthorized());
+        mvc.perform(get(resultado).header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado)))
+                .andExpect(status().isConflict());
 
         mvc.perform(post(sala + "/partida/iniciar")
                 .header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado)))
@@ -204,6 +208,38 @@ class SalaMultiplayerJwtFluxoCompletoIntegrationTest {
                 Integer.class, UUID.fromString(partidaId)));
 
         entityManager.flush();
+        assertEquals(2, jdbc.queryForObject(
+                "SELECT count(*) FROM resultados_partida WHERE partida_id = ?",
+                Integer.class, UUID.fromString(partidaId)));
+
+        String placarFinal = mvc.perform(get(resultado)
+                .header(HttpHeaders.AUTHORIZATION, bearer(jwtAnfitriao)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.partidaId").value(partidaId))
+                .andExpect(jsonPath("$.classificacao.length()").value(2))
+                .andExpect(jsonPath("$.classificacao[0].id").value(anfitriao.getId().toString()))
+                .andExpect(jsonPath("$.classificacao[0].posicao").value(1))
+                .andExpect(jsonPath("$.classificacao[0].pontos").value(200))
+                .andExpect(jsonPath("$.classificacao[0].acertos").value(10))
+                .andExpect(jsonPath("$.classificacao[0].erros").value(0))
+                .andExpect(jsonPath("$.classificacao[1].id").value(convidado.getId().toString()))
+                .andExpect(jsonPath("$.classificacao[1].posicao").value(2))
+                .andExpect(jsonPath("$.classificacao[1].pontos").value(0))
+                .andExpect(jsonPath("$.classificacao[1].acertos").value(0))
+                .andExpect(jsonPath("$.classificacao[1].erros").value(10))
+                .andReturn().getResponse().getContentAsString();
+        mvc.perform(get(resultado).header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado)))
+                .andExpect(status().isOk())
+                .andExpect(content().json(placarFinal));
+        mvc.perform(get(resultado).header(HttpHeaders.AUTHORIZATION, bearer(jwtIntruso)))
+                .andExpect(status().isNotFound());
+        mvc.perform(get("/api/partidas/minhas").param("incluirSalas", "true")
+                .header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(partidaId))
+                .andExpect(jsonPath("$[0].codigoSala").value(sala.substring(sala.lastIndexOf('/') + 1)))
+                .andExpect(jsonPath("$[0].status").value("CONCLUIDA"));
+
         String continuacao = sala + "/partidas/" + partidaId + "/continuacao";
         mvc.perform(put(continuacao)
                 .header(HttpHeaders.AUTHORIZATION, bearer(jwtAnfitriao))
@@ -217,10 +253,14 @@ class SalaMultiplayerJwtFluxoCompletoIntegrationTest {
                 .andExpect(jsonPath("$.status").value("APROVADA"));
         mvc.perform(get(votacao).header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.aberta").value(true));
+                .andExpect(jsonPath("$.aberta").value(true))
+                .andExpect(jsonPath("$.totais.length()").value(0));
         mvc.perform(get(sala).header(HttpHeaders.AUTHORIZATION, bearer(jwtAnfitriao)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.partidaId").doesNotExist());
+        mvc.perform(get(resultado).header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado)))
+                .andExpect(status().isOk())
+                .andExpect(content().json(placarFinal));
 
         mvc.perform(delete(sala).header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado)))
                 .andExpect(status().isForbidden());
@@ -229,6 +269,14 @@ class SalaMultiplayerJwtFluxoCompletoIntegrationTest {
         mvc.perform(get(sala).header(HttpHeaders.AUTHORIZATION, bearer(jwtAnfitriao)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.encerrada").value(true));
+        mvc.perform(get(resultado).header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado)))
+                .andExpect(status().isOk())
+                .andExpect(content().json(placarFinal));
+        mvc.perform(get("/api/partidas/minhas").param("incluirSalas", "true")
+                .header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].id").value(partidaId))
+                .andExpect(jsonPath("$[0].status").value("CONCLUIDA"));
         mvc.perform(post(sala + "/entrada")
                 .header(HttpHeaders.AUTHORIZATION, bearer(jwtIntruso)))
                 .andExpect(status().isConflict());

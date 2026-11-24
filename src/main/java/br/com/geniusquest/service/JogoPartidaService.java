@@ -86,7 +86,7 @@ public class JogoPartidaService {
         return new PartidaResponseDTO(partida.getId(),
                 partida.getCiclo().getId(), partida.getCiclo().getNome(),
                 partida.getTema().getId(), partida.getTemaTitulo(),
-                partida.getCategoriaNome(), partida.getStatus(), partida.getCriadoEm());
+                partida.getCategoriaNome(), partida.getStatus(), partida.getCriadoEm(), null);
     }
 
     /**

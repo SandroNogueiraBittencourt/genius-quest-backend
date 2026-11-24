@@ -74,10 +74,13 @@ public class PartidaService {
     @Transactional(readOnly = true)
     public List<PartidaResponseDTO> minhas(String email, boolean incluirSalas) {
         Usuario usuario = usuarioAtivo(email);
-        List<Partida> encontradas = incluirSalas
-                ? partidas.findTop20ByCriador_IdOrderByCriadoEmDescIdDesc(usuario.getId())
-                : partidas.findTop20ByCriador_IdAndCicloIsNotNullOrderByCriadoEmDescIdDesc(usuario.getId());
-        return encontradas.stream().map(this::resposta).toList();
+        if (incluirSalas) {
+            return partidas.listarMinhasComSalas(usuario.getId()).stream()
+                    .map(partida -> resposta(partida, salas.buscarCodigo(partida.getId()).orElse(null)))
+                    .toList();
+        }
+        return partidas.findTop20ByCriador_IdAndCicloIsNotNullOrderByCriadoEmDescIdDesc(usuario.getId())
+                .stream().map(this::resposta).toList();
     }
 
     @Transactional(readOnly = true)
@@ -142,10 +145,14 @@ public class PartidaService {
     }
 
     private PartidaResponseDTO resposta(Partida partida) {
+        return resposta(partida, null);
+    }
+
+    private PartidaResponseDTO resposta(Partida partida, UUID codigoSala) {
         CicloVotacao ciclo = partida.getCiclo();
         return new PartidaResponseDTO(partida.getId(),
                 ciclo == null ? null : ciclo.getId(), ciclo == null ? null : ciclo.getNome(),
                 partida.getTema().getId(), partida.getTemaTitulo(),
-                partida.getCategoriaNome(), partida.getStatus(), partida.getCriadoEm());
+                partida.getCategoriaNome(), partida.getStatus(), partida.getCriadoEm(), codigoSala);
     }
 }
