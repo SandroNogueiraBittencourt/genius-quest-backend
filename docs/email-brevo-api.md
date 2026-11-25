@@ -72,3 +72,11 @@ Validar: resposta genérica para conta inexistente, código expirado/inválido/r
 - Inspecionar logs sanitizados do backend e o histórico de entregas da Brevo, sem imprimir requisições ou corpos que contenham o código.
 - A implementação registra aviso genérico quando o transporte falha. A resposta genérica de solicitação ao usuário não comprova envio ou entrega.
 - Para falha em produção, preservar o login já existente, suspender a ativação das novas telas conforme o plano de release e investigar antes de repetir o deploy.
+
+## Confirmação e troca de e-mail
+
+- O cadastro informa `emailVerificado: false` para o frontend. As contas existentes são preservadas como verificadas na V22.
+- A confirmação de e-mail usa 10 dígitos e vale 15 minutos. A recuperação de senha mantém o contrato da V21.
+- Para pedir a troca, o titular envia `email` e `senhaAtual` no `PATCH /api/usuarios/{id}`. A resposta mantém o endereço atual enquanto o novo está pendente.
+- Com a sessão atual, o titular envia `codigo` para `POST /api/auth/confirmar-troca-email`. A confirmação aplica o endereço novo e invalida as sessões e códigos de recuperação anteriores.
+- A V23 adiciona o endereço pendente sem alterar o checksum da V22.

@@ -8,6 +8,7 @@ import br.com.geniusquest.entity.Usuario;
 import br.com.geniusquest.exception.EmailJaCadastradoException;
 import br.com.geniusquest.exception.UsuarioNaoEncontradoException;
 import br.com.geniusquest.mapper.UsuarioMapper;
+import br.com.geniusquest.repository.TokenRecuperacaoSenhaRepository;
 import br.com.geniusquest.repository.UsuarioRepository;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -39,6 +40,12 @@ class UsuarioServiceTest {
 
     @Mock
     private PasswordEncoder passwordEncoder;
+
+    @Mock
+    private VerificacaoEmailService verificacao;
+
+    @Mock
+    private TokenRecuperacaoSenhaRepository recuperacao;
 
     @InjectMocks
     private UsuarioService service;
@@ -203,7 +210,7 @@ class UsuarioServiceTest {
                         null
                 );
 
-        when(repository.findById(usuarioId))
+        when(repository.bloquearPorId(usuarioId))
                 .thenReturn(Optional.of(usuario));
 
         when(mapper.toResponse(usuario))
@@ -249,7 +256,7 @@ class UsuarioServiceTest {
                         "outro@geniusquest.com"
                 );
 
-        when(repository.findById(usuarioId))
+        when(repository.bloquearPorId(usuarioId))
                 .thenReturn(Optional.of(usuario));
 
         when(repository.findByEmailIgnoreCase(

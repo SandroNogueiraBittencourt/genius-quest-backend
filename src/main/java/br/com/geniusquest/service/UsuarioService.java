@@ -7,6 +7,8 @@ import br.com.geniusquest.entity.Usuario;
 import br.com.geniusquest.exception.EmailJaCadastradoException;
 import br.com.geniusquest.mapper.UsuarioMapper;
 import br.com.geniusquest.repository.UsuarioRepository;
+import br.com.geniusquest.exception.RegraTemasException;
+import org.springframework.http.HttpStatus;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,15 +28,17 @@ public class UsuarioService {
     private final UsuarioRepository repository;
     private final UsuarioMapper mapper;
     private final PasswordEncoder passwordEncoder;
+    private final VerificacaoEmailService verificacao;
 
     public UsuarioService(
             UsuarioRepository repository,
             UsuarioMapper mapper,
-            PasswordEncoder passwordEncoder) {
+            PasswordEncoder passwordEncoder, VerificacaoEmailService verificacao) {
 
         this.repository = repository;
         this.mapper = mapper;
         this.passwordEncoder = passwordEncoder;
+        this.verificacao = verificacao;
     }
 
     @Transactional
@@ -52,22 +56,25 @@ public class UsuarioService {
 
         usuario.setNome(dto.nome().trim());
         usuario.setEmail(email);
+        usuario.setEmailVerificado(false);
 
         usuario.setSenha(
                 passwordEncoder.encode(dto.senha()));
 
         Usuario usuarioSalvo = repository.save(usuario);
+        repository.flush();
+        verificacao.emitir(usuarioSalvo);
 
         return mapper.toResponse(usuarioSalvo);
     }
 
     @Transactional
-    @PreAuthorize("hasRole('ADMIN') or @usuarioAccessPolicy.isOwner(#p0, authentication)")
+    @PreAuthorize("@usuarioAccessPolicy.isOwner(#p0, authentication) or (hasRole('ADMIN') and #p1.email() == null)")
     public UsuarioResponseDTO atualizar(
             UUID id,
             UsuarioAtualizacaoDTO dto) {
 
-        Usuario usuario = repository.findById(id)
+        Usuario usuario = repository.bloquearPorId(id)
                 .orElseThrow(UsuarioNaoEncontradoException::new);
 
         if (dto.nome() != null) {
@@ -87,7 +94,14 @@ public class UsuarioService {
                         throw new EmailJaCadastradoException();
                     });
 
-            usuario.setEmail(novoEmail);
+            if (!novoEmail.equalsIgnoreCase(usuario.getEmail())) {
+                verificacao.limitarSolicitacaoTroca(usuario);
+                if (dto.senhaAtual() == null || dto.senhaAtual().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72
+                        || !passwordEncoder.matches(dto.senhaAtual(), usuario.getSenha())) {
+                    throw new RegraTemasException(HttpStatus.FORBIDDEN, "Confirme sua senha atual para trocar o e-mail.");
+                }
+                verificacao.emitirTroca(usuario, novoEmail);
+            }
         }
 
         return mapper.toResponse(usuario);
