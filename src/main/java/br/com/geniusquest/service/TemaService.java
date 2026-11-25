@@ -5,6 +5,8 @@ import br.com.geniusquest.entity.*;
 import br.com.geniusquest.exception.RegraTemasException;
 import br.com.geniusquest.repository.*;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.stereotype.Service;
@@ -68,6 +70,18 @@ public class TemaService {
     @PreAuthorize("hasRole('ADMIN')")
     public List<TemaResponseDTO> listarModeracao() {
         return temas.findAllByOrderByCriadoEmAsc().stream().map(this::response).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<TemaResponseDTO> listarAprovados(Pageable pageable) {
+        return temas.findByStatusAndCategoria_Status(StatusTema.APROVADO, StatusCategoria.APROVADA, pageable)
+                .map(this::response);
+    }
+
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN')")
+    public Page<TemaResponseDTO> listarModeracao(Pageable pageable) {
+        return temas.findAll(pageable).map(this::response);
     }
 
     @Transactional(readOnly = true)
