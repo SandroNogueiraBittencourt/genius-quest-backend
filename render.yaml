@@ -18,7 +18,7 @@ services:
     region: oregon
     dockerfilePath: ./Dockerfile
     healthCheckPath: /api/health
-    autoDeployTrigger: off
+    autoDeployTrigger: checksPass
     envVars:
       - key: PORT
         value: "8080"
