@@ -89,6 +89,46 @@ class TemaVotacaoIntegrationTest {
 
     @Test
     @WithMockUser(username = "jogador@geniusquest.test", roles = "USUARIO")
+    void paginaSomenteTemasAprovadosDeCategoriasAprovadas() throws Exception {
+        novoTema("Biologia", StatusTema.APROVADO);
+        novoTema("Geografia", StatusTema.APROVADO);
+        Categoria removida = new Categoria();
+        removida.setNome("Categoria removida");
+        removida.setStatus(StatusCategoria.REMOVIDA);
+        categoria = categorias.saveAndFlush(removida);
+        novoTema("Tema oculto", StatusTema.APROVADO);
+
+        mvc.perform(get("/api/temas").param("page", "1").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].status").value("APROVADO"))
+                .andExpect(jsonPath("$.content[0].categoriaId").value(tema.getCategoria().getId().toString()))
+                .andExpect(jsonPath("$.page.number").value(1))
+                .andExpect(jsonPath("$.page.totalElements").value(2))
+                .andExpect(jsonPath("$.page.totalPages").value(2));
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void moderacaoPaginadaIncluiTemasPendentesComTamanhoPadrao() throws Exception {
+        mvc.perform(get("/api/temas/moderacao").param("page", "0"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content[0].id").value(tema.getId().toString()))
+                .andExpect(jsonPath("$.content[0].status").value("PENDENTE"))
+                .andExpect(jsonPath("$.page.size").value(10));
+    }
+
+    @Test
+    @WithMockUser(username = "jogador@geniusquest.test", roles = "USUARIO")
+    void protegeModeracaoPaginadaERejeitaPaginaNegativa() throws Exception {
+        mvc.perform(get("/api/temas/moderacao").param("page", "0"))
+                .andExpect(status().isForbidden());
+        mvc.perform(get("/api/temas").param("page", "-1"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    @WithMockUser(username = "jogador@geniusquest.test", roles = "USUARIO")
     void jogadorNaoPodeModerarOuCriarCiclos() throws Exception {
         mvc.perform(get("/api/temas/moderacao")).andExpect(status().isForbidden());
         mvc.perform(patch("/api/temas/{id}/aprovar", tema.getId())).andExpect(status().isForbidden());

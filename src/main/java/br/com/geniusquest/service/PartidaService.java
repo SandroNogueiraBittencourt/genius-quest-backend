@@ -4,6 +4,8 @@ import br.com.geniusquest.dto.partida.*;
 import br.com.geniusquest.entity.*;
 import br.com.geniusquest.exception.RegraTemasException;
 import br.com.geniusquest.repository.*;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -76,11 +78,25 @@ public class PartidaService {
         Usuario usuario = usuarioAtivo(email);
         if (incluirSalas) {
             return partidas.listarMinhasComSalas(usuario.getId()).stream()
-                    .map(partida -> resposta(partida, salas.buscarCodigo(partida.getId()).orElse(null)))
+                    .map(this::respostaComSala)
                     .toList();
         }
         return partidas.findTop20ByCriador_IdAndCicloIsNotNullOrderByCriadoEmDescIdDesc(usuario.getId())
                 .stream().map(this::resposta).toList();
+    }
+
+    @Transactional(readOnly = true)
+    public Page<PartidaResponseDTO> minhas(String email, boolean incluirSalas, Pageable pageable) {
+        UUID usuarioId = usuarioAtivo(email).getId();
+        if (incluirSalas) {
+            return partidas.listarMinhasComSalas(usuarioId, pageable).map(this::respostaComSala);
+        }
+        return partidas.findByCriador_IdAndCicloIsNotNullOrderByCriadoEmDescIdDesc(usuarioId, pageable)
+                .map(this::resposta);
+    }
+
+    private PartidaResponseDTO respostaComSala(Partida partida) {
+        return resposta(partida, salas.buscarCodigo(partida.getId()).orElse(null));
     }
 
     @Transactional(readOnly = true)

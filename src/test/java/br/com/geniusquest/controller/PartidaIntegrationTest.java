@@ -93,6 +93,8 @@ class PartidaIntegrationTest {
         mvc.perform(post("/api/partidas").contentType(MediaType.APPLICATION_JSON)
                 .content(pedido(ciclo.getId()))).andExpect(status().isUnauthorized());
         mvc.perform(get("/api/partidas/minhas")).andExpect(status().isUnauthorized());
+        mvc.perform(get("/api/partidas/minhas").param("page", "0"))
+                .andExpect(status().isUnauthorized());
         mvc.perform(get("/api/partidas/{id}", UUID.randomUUID()))
                 .andExpect(status().isUnauthorized());
     }
@@ -157,6 +159,95 @@ class PartidaIntegrationTest {
                 .with(user(segundo.getEmail()).roles("USUARIO")))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
+    void paginaApenasPartidasDoCriador() throws Exception {
+        for (Usuario criador : new Usuario[] {primeiro, primeiro, segundo}) {
+            mvc.perform(post("/api/partidas")
+                    .with(user(criador.getEmail()).roles("USUARIO"))
+                    .contentType(MediaType.APPLICATION_JSON).content(pedido(ciclo.getId())))
+                    .andExpect(status().isCreated());
+        }
+
+        mvc.perform(get("/api/partidas/minhas").param("page", "1").param("size", "1")
+                .with(user(primeiro.getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.page.number").value(1))
+                .andExpect(jsonPath("$.page.totalElements").value(2))
+                .andExpect(jsonPath("$.page.totalPages").value(2));
+
+        mvc.perform(get("/api/partidas/minhas").param("page", "1").param("size", "1")
+                .with(user(segundo.getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.page.totalElements").value(1));
+    }
+
+    @Test
+    void rejeitaTamanhoDePaginaZero() throws Exception {
+        mvc.perform(get("/api/partidas/minhas").param("page", "0").param("size", "0")
+                .with(user(primeiro.getEmail()).roles("USUARIO")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejeitaTamanhoDePaginaAcimaDoLimite() throws Exception {
+        mvc.perform(get("/api/partidas/minhas").param("page", "0").param("size", "101")
+                .with(user(primeiro.getEmail()).roles("USUARIO")))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void paginaPartidasAlemDoLimiteDaListaComOrdemEstavel() throws Exception {
+        for (int i = 0; i < 25; i++) {
+            criarPartidaDoPrimeiroUsuario();
+        }
+        entityManager.flush();
+        jdbc.update("UPDATE partidas SET criado_em = CURRENT_TIMESTAMP WHERE criador_id = ?", primeiro.getId());
+        List<UUID> ids = jdbc.queryForList(
+                "SELECT id FROM partidas WHERE criador_id = ? ORDER BY criado_em DESC, id DESC",
+                UUID.class, primeiro.getId());
+        for (int pagina = 0; pagina < 3; pagina++) {
+            int inicio = pagina * 10;
+            int quantidade = Math.min(10, ids.size() - inicio);
+            var resposta = mvc.perform(get("/api/partidas/minhas").param("page", String.valueOf(pagina))
+                    .param("incluirSalas", "true").with(user(primeiro.getEmail()).roles("USUARIO")))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.content.length()").value(quantidade))
+                    .andExpect(jsonPath("$.page.totalElements").value(25))
+                    .andExpect(jsonPath("$.page.totalPages").value(3));
+            for (int i = 0; i < quantidade; i++) {
+                resposta.andExpect(jsonPath("$.content[" + i + "].id").value(ids.get(inicio + i).toString()));
+            }
+        }
+    }
+
+    @Test
+    void paginaPartidaPeloVinculoComASalaSemResultado() throws Exception {
+        String rota = criarSalaComPartida();
+        var convidado = user(segundo.getEmail()).roles("USUARIO");
+        mvc.perform(post(rota + "/entrada").with(convidado)).andExpect(status().isOk());
+        String codigo = rota.substring(rota.lastIndexOf('/') + 1);
+        UUID partidaId = jdbc.queryForObject("SELECT partida_id FROM salas WHERE codigo = ?",
+                UUID.class, UUID.fromString(codigo));
+        validarPartidaPaginada(segundo, partidaId.toString(), codigo);
+        mvc.perform(get("/api/partidas/minhas").param("page", "0")
+                .param("incluirSalas", "false").with(convidado))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.page.totalElements").value(0));
+    }
+
+    private void validarPartidaPaginada(Usuario jogador, String partidaId, String codigoSala) throws Exception {
+        mvc.perform(get("/api/partidas/minhas").param("page", "0").param("size", "1")
+                .param("incluirSalas", "true").with(user(jogador.getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content.length()").value(1))
+                .andExpect(jsonPath("$.content[0].id").value(partidaId))
+                .andExpect(jsonPath("$.content[0].codigoSala").value(codigoSala))
+                .andExpect(jsonPath("$.page.totalElements").value(1));
     }
 
     @Test
@@ -240,6 +331,14 @@ class PartidaIntegrationTest {
                 .andExpect(jsonPath("$[0].codigoSala").value(codigoSala))
                 .andExpect(jsonPath("$[0].status").value("CONCLUIDA"));
 
+        validarPartidaPaginada(primeiro, partidaId.toString(), codigoSala);
+        validarPartidaPaginada(segundo, partidaId.toString(), codigoSala);
+        mvc.perform(get("/api/partidas/minhas").param("page", "0").param("incluirSalas", "true")
+                .with(user(usuario("sem-vinculo").getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.page.totalElements").value(0));
+
         entityManager.flush();
         String continuacao = rota + "/partidas/" + partidaId + "/continuacao";
         mvc.perform(put(continuacao).with(anfitriao).contentType(MediaType.APPLICATION_JSON)
@@ -263,6 +362,7 @@ class PartidaIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(partidaId.toString()))
                 .andExpect(jsonPath("$[0].status").value("CONCLUIDA"));
+        validarPartidaPaginada(segundo, partidaId.toString(), codigoSala);
         mvc.perform(get(resultado).with(convidado)).andExpect(status().isOk())
                 .andExpect(content().json(placarFinal));
     }
@@ -524,6 +624,12 @@ class PartidaIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].id").value(partidaId))
                 .andExpect(jsonPath("$[0].cicloId").doesNotExist());
+        validarPartidaPaginada(primeiro, partidaId, codigo);
+        mvc.perform(get("/api/partidas/minhas").param("page", "0")
+                .with(user(primeiro.getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.page.totalElements").value(0));
         mvc.perform(post("/api/partidas/{id}/iniciar", partidaId)
                 .with(user(primeiro.getEmail()).roles("USUARIO")))
                 .andExpect(status().isConflict());
