@@ -40,12 +40,18 @@ public class SecurityConfig {
                                 .authorizeHttpRequests(auth -> auth
 
                                                 // Endpoints públicos
-                                                .requestMatchers(
-                                                                "/api/health",
-                                                                "/swagger-ui/**",
-                                                                "/swagger-ui.html",
-                                                                "/v3/api-docs/**")
+                                                .requestMatchers("/api/health")
                                                 .permitAll()
+
+                                                // Swagger/OpenAPI: nunca anonimo. Em producao,
+                                                // endpoints tambem sao desabilitados por padrao.
+                                                .requestMatchers(
+                                                                "/swagger-ui.html",
+                                                                "/swagger-ui/**",
+                                                                "/v3/api-docs",
+                                                                "/v3/api-docs/**",
+                                                                "/v3/api-docs.yaml")
+                                                .hasRole("ADMIN")
 
                                                 // Cadastro de usuário
                                                 .requestMatchers(

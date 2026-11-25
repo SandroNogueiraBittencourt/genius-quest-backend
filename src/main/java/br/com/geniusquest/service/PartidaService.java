@@ -22,19 +22,22 @@ public class PartidaService {
     private final UsuarioRepository usuarios;
     private final PerguntaRepository perguntas;
     private final PerguntaPartidaRepository perguntasPartida;
+    private final SalaRepository salas;
 
     public PartidaService(PartidaRepository partidas,
             CicloVotacaoRepository ciclos,
             ResultadoTemaCicloRepository resultados,
             UsuarioRepository usuarios,
             PerguntaRepository perguntas,
-            PerguntaPartidaRepository perguntasPartida) {
+            PerguntaPartidaRepository perguntasPartida,
+            SalaRepository salas) {
         this.partidas = partidas;
         this.ciclos = ciclos;
         this.resultados = resultados;
         this.usuarios = usuarios;
         this.perguntas = perguntas;
         this.perguntasPartida = perguntasPartida;
+        this.salas = salas;
     }
 
     @Transactional
@@ -53,26 +56,47 @@ public class PartidaService {
                 .map(ResultadoTemaCiclo::getTituloTema)
                 .orElseGet(vencedor::getTitulo);
 
+        return resposta(salvarPartida(criador, ciclo, vencedor, titulo));
+    }
+
+    Partida prepararTema(Usuario criador, Tema tema) {
+        return salvarPartida(criador, null, tema, tema.getTitulo());
+    }
+
+    private Partida salvarPartida(Usuario criador, CicloVotacao ciclo, Tema tema, String titulo) {
         Partida partida = new Partida();
         partida.setCiclo(ciclo);
-        partida.setTema(vencedor);
+        partida.setTema(tema);
         partida.setCriador(criador);
         partida.setTemaTitulo(titulo);
-        partida.setCategoriaNome(vencedor.getCategoria().getNome());
-        return resposta(partidas.saveAndFlush(partida));
+        partida.setCategoriaNome(tema.getCategoria().getNome());
+        return partidas.saveAndFlush(partida);
     }
 
     @Transactional(readOnly = true)
-    public List<PartidaResponseDTO> minhas(String email) {
+    public List<PartidaResponseDTO> minhas(String email, boolean incluirSalas) {
         Usuario usuario = usuarioAtivo(email);
-        return partidas.findTop20ByCriador_IdOrderByCriadoEmDescIdDesc(usuario.getId())
+        if (incluirSalas) {
+            return partidas.listarMinhasComSalas(usuario.getId()).stream()
+                    .map(this::respostaComSala)
+                    .toList();
+        }
+        return partidas.findTop20ByCriador_IdAndCicloIsNotNullOrderByCriadoEmDescIdDesc(usuario.getId())
                 .stream().map(this::resposta).toList();
     }
 
     @Transactional(readOnly = true)
-    public Page<PartidaResponseDTO> minhas(String email, Pageable pageable) {
-        Usuario usuario = usuarioAtivo(email);
-        return partidas.findByCriador_Id(usuario.getId(), pageable).map(this::resposta);
+    public Page<PartidaResponseDTO> minhas(String email, boolean incluirSalas, Pageable pageable) {
+        UUID usuarioId = usuarioAtivo(email).getId();
+        if (incluirSalas) {
+            return partidas.listarMinhasComSalas(usuarioId, pageable).map(this::respostaComSala);
+        }
+        return partidas.findByCriador_IdAndCicloIsNotNullOrderByCriadoEmDescIdDesc(usuarioId, pageable)
+                .map(this::resposta);
+    }
+
+    private PartidaResponseDTO respostaComSala(Partida partida) {
+        return resposta(partida, salas.buscarCodigo(partida.getId()).orElse(null));
     }
 
     @Transactional(readOnly = true)
@@ -84,6 +108,7 @@ public class PartidaService {
     @Transactional(readOnly = true)
     public List<PerguntaQuizDTO> perguntasElegiveis(UUID partidaId, String email) {
         Partida partida = partidaDoCriador(partidaId, email);
+        exigirJogoIndividual(partida);
         if (partida.getStatus() != StatusPartida.PREPARACAO) {
             // Depois do início, as questões e alternativas são lidas exclusivamente
             // do snapshot, independentemente de edições posteriores na curadoria.
@@ -103,6 +128,12 @@ public class PartidaService {
                                 .map(AlternativaPergunta::getTexto).toList(),
                         pergunta.getDificuldadeInicial()))
                 .toList();
+    }
+
+    void exigirJogoIndividual(Partida partida) {
+        if (partida.getCiclo() == null || salas.buscarCodigo(partida.getId()).isPresent()) {
+            throw erro(HttpStatus.CONFLICT, "Use a sala para jogar esta partida");
+        }
     }
 
     private Partida partidaDoCriador(UUID id, String email) {
@@ -130,9 +161,14 @@ public class PartidaService {
     }
 
     private PartidaResponseDTO resposta(Partida partida) {
+        return resposta(partida, null);
+    }
+
+    private PartidaResponseDTO resposta(Partida partida, UUID codigoSala) {
+        CicloVotacao ciclo = partida.getCiclo();
         return new PartidaResponseDTO(partida.getId(),
-                partida.getCiclo().getId(), partida.getCiclo().getNome(),
+                ciclo == null ? null : ciclo.getId(), ciclo == null ? null : ciclo.getNome(),
                 partida.getTema().getId(), partida.getTemaTitulo(),
-                partida.getCategoriaNome(), partida.getStatus(), partida.getCriadoEm());
+                partida.getCategoriaNome(), partida.getStatus(), partida.getCriadoEm(), codigoSala);
     }
 }

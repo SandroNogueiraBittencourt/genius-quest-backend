@@ -23,7 +23,7 @@ class GeracaoPerguntasIAServiceTest {
 
     @Test
     void falhaDoProvedorNaoPersisteNada() {
-        var contexto = new ContextoGeracaoIA(id, "Tema", "Categoria");
+        var contexto = new ContextoGeracaoIA(id, "Tema", "Categoria", List.of());
         when(persistencia.contexto(id)).thenReturn(contexto);
         when(provedor.gerar(contexto, 2)).thenThrow(new IllegalStateException("IA indisponível"));
         assertThrows(IllegalStateException.class, () -> service.gerarCandidatas(id, 2));
@@ -32,7 +32,7 @@ class GeracaoPerguntasIAServiceTest {
 
     @Test
     void quantidadeIncorretaNaoPersisteLote() {
-        var contexto = new ContextoGeracaoIA(id, "Tema", "Categoria");
+        var contexto = new ContextoGeracaoIA(id, "Tema", "Categoria", List.of());
         when(persistencia.contexto(id)).thenReturn(contexto);
         when(provedor.gerar(contexto, 2)).thenReturn(new LoteGeradoIA("modelo", List.of()));
         assertThrows(IllegalStateException.class, () -> service.gerarCandidatas(id, 2));
@@ -41,7 +41,8 @@ class GeracaoPerguntasIAServiceTest {
 
     @Test
     void somentePersistenciaRetornaIdsDepoisDaGeracao() {
-        var contexto = new ContextoGeracaoIA(id, "Tema", "Categoria");
+        var contexto = new ContextoGeracaoIA(id, "Tema", "Categoria",
+                List.of("Qual planeta é conhecido como planeta vermelho?"));
         var candidato = new CandidataGeradaIA("Enunciado longo o suficiente para passar",
                 List.of("um", "dois", "três", "quatro"), 0,
                 br.com.geniusquest.entity.DificuldadePergunta.FACIL, null);

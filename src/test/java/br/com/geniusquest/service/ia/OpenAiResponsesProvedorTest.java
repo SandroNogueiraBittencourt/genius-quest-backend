@@ -1,6 +1,7 @@
 package br.com.geniusquest.service.ia;
 
 import org.junit.jupiter.api.Test;
+import java.util.List;
 import java.util.UUID;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.json.JsonMapper;
@@ -12,9 +13,11 @@ class OpenAiResponsesProvedorTest {
 
     @Test
     void preparaRequisicaoResponsesParaQuizSemChamadaPaga() {
-        var contexto = new ContextoGeracaoIA(UUID.randomUUID(), "Astronomia", "Ciencias");
-        JsonNode requisicao = JsonMapper.builder().build()
-                .readTree(client.montarRequisicao(contexto, 1));
+        String enunciado = "Qual planeta é chamado de \"planeta vermelho\"?\nConsidere o Sistema Solar.";
+        var contexto = new ContextoGeracaoIA(
+                UUID.randomUUID(), "Astronomia", "Ciências", List.of(enunciado));
+        JsonMapper json = JsonMapper.builder().build();
+        JsonNode requisicao = json.readTree(client.montarRequisicao(contexto, 1));
 
         assertEquals("modelo-de-teste", requisicao.path("model").asString());
         assertEquals("none", requisicao.path("reasoning").path("effort").asString());
@@ -30,7 +33,12 @@ class OpenAiResponsesProvedorTest {
                 .path("perguntas").path("items").has("additionalProperties"));
         assertFalse(formato.path("schema").path("properties")
                 .path("perguntas").path("items").path("additionalProperties").asBoolean());
-        assertTrue(requisicao.path("input").asString().contains("Astronomia"));
+        JsonNode entrada = json.readTree(requisicao.path("input").asString());
+        assertEquals(4, entrada.size());
+        assertEquals("Astronomia", entrada.path("tema").asString());
+        assertEquals("Ciências", entrada.path("categoria").asString());
+        assertEquals(1, entrada.path("quantidade").asInt());
+        assertEquals(json.valueToTree(List.of(enunciado)), entrada.path("enunciadosExistentes"));
     }
 
     @Test
@@ -58,5 +66,24 @@ class OpenAiResponsesProvedorTest {
                 () -> client.interpretar("{\"status\":\"incomplete\",\"output\":[]}", 1));
         assertThrows(IllegalStateException.class,
                 () -> client.interpretar("{\"status\":\"completed\",\"output\":[]}", 1));
+    }
+
+    @Test
+    void extraiSomenteCodigosDeErroConhecidosParaDiagnostico() {
+        assertEquals("insufficient_quota",
+                client.codigoErroSeguro("""
+                        {"error":{"code":"insufficient_quota","message":"detalhe privado"}}
+                        """));
+        assertEquals("project_spend_limit_exceeded",
+                client.codigoErroSeguro("""
+                        {"error":{"type":"insufficient_quota","code":"project_spend_limit_exceeded"}}
+                        """));
+        assertEquals("desconhecido",
+                client.codigoErroSeguro("""
+                        {"error":{"code":"dado privado inesperado"}}
+                        """));
+        assertEquals("desconhecido", client.codigoErroSeguro("corpo invalido"));
+        assertEquals("desconhecido", client.codigoErroSeguro(""));
+        assertEquals("desconhecido", client.codigoErroSeguro("{\"error\":{\"code\":null}}"));
     }
 }

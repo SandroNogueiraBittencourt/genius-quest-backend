@@ -1,0 +1,43 @@
+name: Backup V20 - Validacao Offline
+
+on:
+  pull_request:
+    paths:
+      - 'scripts/geniusquest_v20_backup_restore.py'
+      - 'scripts/tests/test_geniusquest_v20_backup_restore.py'
+      - 'scripts/tests/integration_v20_docker.py'
+      - 'docs/ENSAIO-REAL-FLYWAY-V12-V20.md'
+      - '.github/workflows/validar-backup-v20.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline:
+    name: Verificar protecoes de backup V20 sem segredos
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Sintaxe
+        run: python3 -m py_compile scripts/geniusquest_v20_backup_restore.py scripts/tests/test_geniusquest_v20_backup_restore.py
+      - name: Testes sem rede e sem dados reais
+        run: python3 -m unittest discover -s scripts/tests -p 'test_geniusquest_v20_backup_restore.py' -v
+
+  migracao-sintetica:
+    name: Ensaiar V12/V13 -> V20 em Docker isolado
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Validar sintaxe
+        run: python3 -m py_compile scripts/tests/integration_v20_docker.py
+      - name: Ensaio com dados sinteticos sem acesso a producao
+        run: python3 scripts/tests/integration_v20_docker.py

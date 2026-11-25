@@ -34,15 +34,17 @@ public class PartidaController {
     }
 
     @GetMapping(value = "/minhas", params = "!page")
-    public List<PartidaResponseDTO> minhas(Principal principal) {
-        return service.minhas(principal.getName());
+    public List<PartidaResponseDTO> minhas(
+            @RequestParam(defaultValue = "false") boolean incluirSalas, Principal principal) {
+        return service.minhas(principal.getName(), incluirSalas);
     }
 
     @GetMapping(value = "/minhas", params = "page")
     public PagedModel<PartidaResponseDTO> minhasPaginado(
-            Principal principal, @RequestParam int page, @RequestParam(defaultValue = "10") int size) {
-        return new PagedModel<>(service.minhas(principal.getName(),
-                Paginacao.criar(page, size, Sort.by(Sort.Direction.DESC, "criadoEm", "id"))));
+            Principal principal, @RequestParam int page, @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "false") boolean incluirSalas) {
+        return new PagedModel<>(service.minhas(principal.getName(), incluirSalas,
+                Paginacao.criar(page, size, Sort.unsorted())));
     }
 
     @GetMapping("/{id}")
