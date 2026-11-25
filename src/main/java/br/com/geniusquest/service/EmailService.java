@@ -33,7 +33,12 @@ public class EmailService {
     public void enviarCodigoVerificacao(String destinatario, String nome, String codigo) {
         try {
             String assunto = "Genius Quest: confirme seu e-mail";
-            String html = emailComCodigo(nome, codigo, "Confirme seu e-mail",
+            String digitos = CodigoVerificacaoEmail.normalizar(codigo);
+            if (!CodigoVerificacaoEmail.formatoValido(digitos)) {
+                throw new IllegalArgumentException("Formato de código inválido");
+            }
+            String codigoExibido = digitos.replaceAll("([0-9]{2})(?=[0-9])", "$1 ");
+            String html = emailComCodigo(nome, codigoExibido, "Confirme seu e-mail",
                     "Use o código abaixo para confirmar seu endereço de e-mail.",
                     "", "Se você não solicitou esta confirmação, ignore este e-mail.", CodigoVerificacaoEmail.VALIDADE_MINUTOS);
             if ("brevo-api".equalsIgnoreCase(provedor)) {
@@ -106,7 +111,7 @@ public class EmailService {
         return """
                 <!doctype html>
                 <html lang="pt-BR">
-                <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+                <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="format-detection" content="telephone=no"></head>
                 <body style="margin:0;padding:32px 16px;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;color:#1a1530">
                   <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
                     <table role="presentation" width="100%" cellspacing="0" cellpadding="0"

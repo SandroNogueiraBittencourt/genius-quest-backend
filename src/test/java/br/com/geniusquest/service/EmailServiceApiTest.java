@@ -44,7 +44,9 @@ class EmailServiceApiTest {
         ArgumentCaptor<String> corpo = ArgumentCaptor.forClass(String.class);
         verify(brevo).enviar(eq("alguem@example.com"), eq("Teste"),
                 eq("remetente@example.com"), eq("Genius Quest: confirme seu e-mail"), corpo.capture());
-        assertTrue(corpo.getValue().contains("0123456789"));
+        assertTrue(corpo.getValue().contains("01 23 45 67 89"));
+        assertTrue(corpo.getValue().contains("telephone=no"));
+        assertEquals("0123456789", CodigoVerificacaoEmail.normalizar("01 23 45 67 89"));
         assertTrue(corpo.getValue().contains("15 minutos"));
         assertTrue(corpo.getValue().contains("Curiosidade que aproxima"));
         assertFalse(corpo.getValue().contains("href="));
