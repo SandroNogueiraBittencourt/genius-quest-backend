@@ -47,11 +47,13 @@ class RecuperacaoSenhaServiceTest {
         usuario.setEmail("teste@example.com");
         usuario.setAtivo(true);
         usuario.setSenha("hash-antigo");
+        lenient().when(tokens.buscarUsuarioIdPorHash(anyString())).thenReturn(Optional.of(usuario.getId()));
+        lenient().when(usuarios.bloquearPorId(usuario.getId())).thenReturn(Optional.of(usuario));
     }
 
     @Test
     void deveGerarTokenEEnviarLinkParaEmailCadastrado() throws Exception {
-        when(usuarios.findByEmailIgnoreCase(usuario.getEmail())).thenReturn(Optional.of(usuario));
+        when(usuarios.bloquearPorEmail(usuario.getEmail())).thenReturn(Optional.of(usuario));
         Instant antes = Instant.now();
 
         service.solicitar(usuario.getEmail(), "127.0.0.1");
@@ -75,7 +77,7 @@ class RecuperacaoSenhaServiceTest {
 
     @Test
     void naoDeveGerarTokenParaEmailInexistente() {
-        when(usuarios.findByEmailIgnoreCase(usuario.getEmail())).thenReturn(Optional.empty());
+        when(usuarios.bloquearPorEmail(usuario.getEmail())).thenReturn(Optional.empty());
         assertDoesNotThrow(() -> service.solicitar(usuario.getEmail(), "127.0.0.1"));
         verifyNoInteractions(tokens, emails, encoder);
     }
@@ -83,14 +85,14 @@ class RecuperacaoSenhaServiceTest {
     @Test
     void naoDeveGerarTokenParaUsuarioInativo() {
         usuario.setAtivo(false);
-        when(usuarios.findByEmailIgnoreCase(usuario.getEmail())).thenReturn(Optional.of(usuario));
+        when(usuarios.bloquearPorEmail(usuario.getEmail())).thenReturn(Optional.of(usuario));
         service.solicitar(usuario.getEmail(), "127.0.0.1");
         verifyNoInteractions(tokens, emails, encoder);
     }
 
     @Test
     void deveInvalidarTokensAnterioresAntesDeSalvarNovoToken() {
-        when(usuarios.findByEmailIgnoreCase(usuario.getEmail())).thenReturn(Optional.of(usuario));
+        when(usuarios.bloquearPorEmail(usuario.getEmail())).thenReturn(Optional.of(usuario));
         service.solicitar(usuario.getEmail(), "127.0.0.1");
         var ordem = inOrder(tokens, emails);
         ordem.verify(tokens).invalidarTokensAbertos(usuario.getId());
@@ -117,7 +119,7 @@ class RecuperacaoSenhaServiceTest {
 
     @Test
     void deveRejeitarTokenInexistenteSemAlterarSenha() throws Exception {
-        when(tokens.findByTokenHash(hash("ABCD2345EFGH6789"))).thenReturn(Optional.empty());
+        when(tokens.buscarUsuarioIdPorHash(hash("ABCD2345EFGH6789"))).thenReturn(Optional.empty());
         assertThrows(TokenRecuperacaoInvalidoException.class,
                 () -> service.redefinir("ABCD2345EFGH6789", "NovaSenha123!", "127.0.0.1"));
         verificarSenhaPreservada();
@@ -153,7 +155,7 @@ class RecuperacaoSenhaServiceTest {
 
     @Test
     void soEnviaEmailAposCommitDaTransacao() {
-        when(usuarios.findByEmailIgnoreCase(usuario.getEmail())).thenReturn(Optional.of(usuario));
+        when(usuarios.bloquearPorEmail(usuario.getEmail())).thenReturn(Optional.of(usuario));
         org.springframework.transaction.support.TransactionSynchronizationManager.initSynchronization();
         org.springframework.transaction.support.TransactionSynchronizationManager.setActualTransactionActive(true);
         try {
@@ -190,7 +192,8 @@ class RecuperacaoSenhaServiceTest {
 
     private void verificarSenhaPreservada() {
         assertEquals("hash-antigo", usuario.getSenha());
-        verifyNoInteractions(usuarios, encoder, emails);
+        verifyNoInteractions(encoder, emails);
+        verify(usuarios, never()).save(any());
         verify(tokens, never()).save(any());
     }
 

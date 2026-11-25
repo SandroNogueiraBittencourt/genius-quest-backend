@@ -52,7 +52,7 @@ public class RecuperacaoSenhaService {
             return;
         }
         // Nunca revela se o e-mail existe: o controller responde igual nos dois casos
-        usuarioRepository.findByEmailIgnoreCase(email)
+        usuarioRepository.bloquearPorEmail(email)
                 .filter(Usuario::getAtivo)
                 .ifPresent(usuario -> {
                     tokenRepository.invalidarTokensAbertos(usuario.getId());
@@ -93,11 +93,16 @@ public class RecuperacaoSenhaService {
             throw new TokenRecuperacaoInvalidoException();
         }
         String normalizado = CodigoRecuperacao.normalizar(codigo);
-        TokenRecuperacaoSenha t = tokenRepository.findByTokenHash(hash(normalizado))
+        String hash = hash(normalizado);
+        var usuarioId = tokenRepository.buscarUsuarioIdPorHash(hash)
+                .orElseThrow(TokenRecuperacaoInvalidoException::new);
+        Usuario usuario = usuarioRepository.bloquearPorId(usuarioId)
+                .filter(conta -> Boolean.TRUE.equals(conta.getAtivo()))
+                .orElseThrow(TokenRecuperacaoInvalidoException::new);
+        TokenRecuperacaoSenha t = tokenRepository.findByTokenHash(hash)
                 .filter(x -> !x.getUsado() && !x.expirado())
                 .orElseThrow(TokenRecuperacaoInvalidoException::new);
 
-        Usuario usuario = t.getUsuario();
         usuario.setSenha(passwordEncoder.encode(novaSenha));
         usuario.incrementarVersaoCredenciais();
         usuarioRepository.save(usuario);

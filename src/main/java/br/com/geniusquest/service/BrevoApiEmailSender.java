@@ -40,6 +40,10 @@ public class BrevoApiEmailSender {
     }
 
     public void enviar(String destinatario, String nome, String remetente, String html) {
+        enviar(destinatario, nome, remetente, "Genius Quest: recuperação de senha", html);
+    }
+
+    public void enviar(String destinatario, String nome, String remetente, String assunto, String html) {
         if (apiKey == null || apiKey.isBlank()) {
             throw new IllegalStateException("BREVO_API_KEY ausente");
         }
@@ -54,7 +58,7 @@ public class BrevoApiEmailSender {
                 "name", nome,
                 // Efeito depende da configuracao de consentimento no painel Brevo.
                 "contactPixelTrackingConsent", false)));
-        corpo.put("subject", "Genius Quest: recuperação de senha");
+        corpo.put("subject", assunto);
         corpo.put("htmlContent", html);
 
         try {

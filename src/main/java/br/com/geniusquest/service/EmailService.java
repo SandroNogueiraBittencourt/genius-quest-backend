@@ -29,6 +29,40 @@ public class EmailService {
         this.brevoApi = brevoApi;
     }
 
+    @Async
+    public void enviarCodigoVerificacao(String destinatario, String nome, String codigo) {
+        try {
+            String assunto = "Genius Quest: confirme seu e-mail";
+            String digitos = CodigoVerificacaoEmail.normalizar(codigo);
+            if (!CodigoVerificacaoEmail.formatoValido(digitos)) {
+                throw new IllegalArgumentException("Formato de código inválido");
+            }
+            String codigoExibido = digitos.replaceAll("([0-9]{2})(?=[0-9])", "$1 ");
+            String html = emailComCodigo(nome, codigoExibido, "Confirme seu e-mail",
+                    "Use o código abaixo para confirmar seu endereço de e-mail.",
+                    "", "Se você não solicitou esta confirmação, ignore este e-mail.", CodigoVerificacaoEmail.VALIDADE_MINUTOS);
+            if ("brevo-api".equalsIgnoreCase(provedor)) {
+                brevoApi.enviar(destinatario, nome, remetente, assunto, html);
+            } else if ("smtp".equalsIgnoreCase(provedor)) {
+                enviarSmtp(destinatario, assunto, html);
+            } else {
+                throw new IllegalStateException("MAIL_PROVIDER invalido");
+            }
+        } catch (Exception e) {
+            log.warn("Falha no transporte de verificação de e-mail (classe={})", e.getClass().getSimpleName());
+        }
+    }
+
+    private void enviarSmtp(String destinatario, String assunto, String html) throws Exception {
+        MimeMessage msg = mailSender.createMimeMessage();
+        MimeMessageHelper helper = new MimeMessageHelper(msg, "UTF-8");
+        helper.setFrom(remetente, "Genius Quest");
+        helper.setTo(destinatario);
+        helper.setSubject(assunto);
+        helper.setText(html, true);
+        mailSender.send(msg);
+    }
+
     /**
      * O codigo deve existir apenas no texto do e-mail, nunca em URLs.
      * A pagina de redefinicao nao recebe segredo em query, fragmento ou path.
@@ -51,10 +85,33 @@ public class EmailService {
                 throw new IllegalArgumentException("Pagina com parametros nao permitidos");
             }
 
-            String html = """
+            String acao = """
+                    <p><a href="%s" style="display:inline-block;padding:14px 18px;
+                       border-radius:12px;background:#ffb347;color:#1a1530;font-weight:bold">
+                       Abrir página de redefinição</a></p>
+                    """.formatted(HtmlUtils.htmlEscape(urlPagina));
+            String html = emailComCodigo(nome, CodigoRecuperacao.paraExibicao(CodigoRecuperacao.normalizar(codigo)), "Recuperar acesso",
+                    "Recebemos um pedido de redefinição da sua senha. Digite o código no aplicativo.",
+                    acao, "Se você não solicitou a recuperação, ignore este e-mail.", 30);
+            if ("brevo-api".equalsIgnoreCase(provedor)) {
+                brevoApi.enviar(destinatario, nome, remetente, html);
+            } else if ("smtp".equalsIgnoreCase(provedor)) {
+                enviarSmtp(destinatario, "Genius Quest: código de recuperação", html);
+            } else {
+                throw new IllegalStateException("MAIL_PROVIDER invalido");
+            }
+        } catch (Exception e) {
+            // Nunca registrar link, codigo, email, chave API ou body da mensagem.
+            log.warn("Falha no transporte de recuperacao (classe={})", e.getClass().getSimpleName());
+        }
+    }
+
+    private String emailComCodigo(String nome, String codigo, String titulo, String intro,
+            String acao, String rodape, long validade) {
+        return """
                 <!doctype html>
                 <html lang="pt-BR">
-                <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+                <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="format-detection" content="telephone=no"></head>
                 <body style="margin:0;padding:32px 16px;background:#f5f3ff;font-family:Arial,Helvetica,sans-serif;color:#1a1530">
                   <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center">
                     <table role="presentation" width="100%" cellspacing="0" cellpadding="0"
@@ -64,42 +121,25 @@ public class EmailService {
                         <p style="font-size:14px;color:#d9d2eb">Curiosidade que aproxima.</p>
                       </td></tr>
                       <tr><td style="padding:32px">
-                        <h1 style="font-size:26px">Recuperar acesso</h1>
+                        <h1 style="font-size:26px">{{TITULO}}</h1>
                         <p>Olá, <strong>{{NOME}}</strong>!</p>
-                        <p>Recebemos um pedido de redefinição da senha da sua conta.</p>
-                        <p>Digite este código no aplicativo:</p>
+                        <p>{{INTRO}}</p>
                         <p style="font-family:monospace;font-size:25px;font-weight:bold;letter-spacing:2px;
                            padding:18px 12px;background:#eee9ff;border-radius:12px;text-align:center">{{CODIGO}}</p>
-                        <p>O código expira em <strong>30 minutos</strong>, só pode ser usado uma vez e não deve ser compartilhado.</p>
-                        <p><a href="{{URL}}" style="display:inline-block;padding:14px 18px;
-                           border-radius:12px;background:#ffb347;color:#1a1530;text-decoration:none;font-weight:bold">
-                           Abrir página de redefinição</a></p>
-                        <p style="color:#605672;font-size:14px">Se você não solicitou a recuperação, ignore este e-mail.</p>
+                        <p>O código expira em <strong>{{VALIDADE}} minutos</strong>, só pode ser usado uma vez e não deve ser compartilhado.</p>
+                        {{ACAO}}
+                        <p style="color:#605672;font-size:14px">{{RODAPE}}</p>
                       </td></tr>
                     </table>
                   </td></tr></table>
                 </body></html>
                 """
-                .replace("{{NOME}}", HtmlUtils.htmlEscape(nome))
-                .replace("{{CODIGO}}", HtmlUtils.htmlEscape(CodigoRecuperacao.paraExibicao(codigo)))
-                .replace("{{URL}}", HtmlUtils.htmlEscape(urlPagina));
-
-            if ("brevo-api".equalsIgnoreCase(provedor)) {
-                brevoApi.enviar(destinatario, nome, remetente, html);
-            } else if ("smtp".equalsIgnoreCase(provedor)) {
-                MimeMessage msg = mailSender.createMimeMessage();
-                MimeMessageHelper helper = new MimeMessageHelper(msg, "UTF-8");
-                helper.setFrom(remetente, "Genius Quest");
-                helper.setTo(destinatario);
-                helper.setSubject("Genius Quest: código de recuperação");
-                helper.setText(html, true);
-                mailSender.send(msg);
-            } else {
-                throw new IllegalStateException("MAIL_PROVIDER invalido");
-            }
-        } catch (Exception e) {
-            // Nunca registrar link, codigo, email, chave API ou body da mensagem.
-            log.warn("Falha no transporte de recuperacao (classe={})", e.getClass().getSimpleName());
-        }
+                .replace("{{TITULO}}", titulo)
+                .replace("{{INTRO}}", intro)
+                .replace("{{CODIGO}}", codigo)
+                .replace("{{VALIDADE}}", Long.toString(validade))
+                .replace("{{ACAO}}", acao)
+                .replace("{{RODAPE}}", rodape)
+                .replace("{{NOME}}", HtmlUtils.htmlEscape(nome));
     }
 }

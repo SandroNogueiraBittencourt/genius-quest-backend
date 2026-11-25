@@ -28,7 +28,7 @@ public class UsuarioMapper {
                 usuario.getMoedas(),
                 usuario.getAtivo(),
                 usuario.getCriadoEm(),
-                usuario.getAtualizadoEm()
+                usuario.getAtualizadoEm(), usuario.isEmailVerificado()
         );
     }
 }

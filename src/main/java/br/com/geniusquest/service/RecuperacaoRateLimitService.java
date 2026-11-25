@@ -40,6 +40,23 @@ public class RecuperacaoRateLimitService {
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean permitir(String email, String origem) {
+        return limitarEnvio("", email, origem);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean permitirEnvioVerificacao(String email, String origem) {
+        return limitarEnvio("verificacao:", email, origem);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean permitirSolicitacaoTroca(java.util.UUID usuarioId) {
+        Instant agora = Instant.now();
+        Instant inicio = Instant.ofEpochSecond(
+                (agora.getEpochSecond() / JANELA_SEGUNDOS) * JANELA_SEGUNDOS);
+        return incrementar(hmac("troca-email:" + usuarioId), inicio) <= LIMITE_EMAIL;
+    }
+
+    private boolean limitarEnvio(String escopo, String email, String origem) {
         String emailNormalizado = email == null ? "" : email.trim().toLowerCase(Locale.ROOT);
         String ip = origem == null || origem.isBlank() ? "indefinido" : origem.trim();
         Instant agora = Instant.now();
@@ -47,8 +64,8 @@ public class RecuperacaoRateLimitService {
                 (agora.getEpochSecond() / JANELA_SEGUNDOS) * JANELA_SEGUNDOS);
 
         // Os dois contadores sempre sao atualizados para reduzir abusos.
-        int tentativasIp = incrementar(hmac("ip:" + ip), inicio);
-        int tentativasEmail = incrementar(hmac("email:" + emailNormalizado), inicio);
+        int tentativasIp = incrementar(hmac(escopo + "ip:" + ip), inicio);
+        int tentativasEmail = incrementar(hmac(escopo + "email:" + emailNormalizado), inicio);
         return tentativasIp <= LIMITE_IP && tentativasEmail <= LIMITE_EMAIL;
     }
 
@@ -57,13 +74,21 @@ public class RecuperacaoRateLimitService {
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public boolean permitirValidacao(String codigo, String origem) {
+        return limitarValidacao("", CodigoRecuperacao.normalizar(codigo), origem);
+    }
+
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public boolean permitirValidacaoVerificacao(String email, String origem) {
+        return limitarValidacao("verificacao:", email.strip().toLowerCase(Locale.ROOT), origem);
+    }
+
+    private boolean limitarValidacao(String escopo, String chave, String origem) {
         String ip = origem == null || origem.isBlank() ? "indefinido" : origem.trim();
-        String normalizado = CodigoRecuperacao.normalizar(codigo);
         Instant agora = Instant.now();
         Instant inicio = Instant.ofEpochSecond(
                 (agora.getEpochSecond() / JANELA_SEGUNDOS) * JANELA_SEGUNDOS);
-        int porIp = incrementar(hmac("validacao:ip:" + ip), inicio);
-        int porCodigo = incrementar(hmac("validacao:codigo:" + normalizado), inicio);
+        int porIp = incrementar(hmac(escopo + "validacao:ip:" + ip), inicio);
+        int porCodigo = incrementar(hmac(escopo + "validacao:codigo:" + chave), inicio);
         return porIp <= 20 && porCodigo <= 5;
     }
 
