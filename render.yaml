@@ -13,7 +13,7 @@ services:
     name: genius-quest-api
     runtime: docker
     repo: https://github.com/SandroNogueiraBittencourt/genius-quest-backend
-    branch: develop
+    branch: main
     plan: free
     region: oregon
     dockerfilePath: ./Dockerfile
