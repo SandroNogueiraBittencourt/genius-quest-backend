@@ -159,6 +159,11 @@ public class SalaRepository {
                 """, Boolean.class, codigo, usuarioId));
     }
 
+    public long contarParticipantes(UUID codigo) {
+        return jdbc.queryForObject(
+                "SELECT COUNT(*) FROM sala_participantes WHERE codigo_sala = ?", Long.class, codigo);
+    }
+
     public List<Participante> listarParticipantes(UUID codigo) {
         return jdbc.query("""
                 SELECT u.id, u.nome
