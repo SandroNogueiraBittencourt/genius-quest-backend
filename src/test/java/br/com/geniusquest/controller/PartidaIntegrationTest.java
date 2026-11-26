@@ -473,6 +473,10 @@ class PartidaIntegrationTest {
 
         String iniciar = rota + "/partida/iniciar";
         String atual = rota + "/partida/pergunta-atual";
+        mvc.perform(delete(rota + "/entrada").with(convidado)).andExpect(status().isNoContent());
+        mvc.perform(post(iniciar).with(anfitriao)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.mensagem").value("São necessários pelo menos 2 jogadores para iniciar a partida."));
+        mvc.perform(post(rota + "/entrada").with(convidado)).andExpect(status().isOk());
         mvc.perform(get(atual).with(convidado)).andExpect(status().isConflict());
         mvc.perform(post(iniciar).with(convidado)).andExpect(status().isForbidden());
         var resposta = mvc.perform(post(iniciar).with(anfitriao))
@@ -502,12 +506,16 @@ class PartidaIntegrationTest {
     void mantemPartidaEmPreparacaoQuandoFaltamPerguntasValidas() throws Exception {
         String rota = criarSalaComPartida();
         var anfitriao = user(primeiro.getEmail()).roles("USUARIO");
+        mvc.perform(post(rota + "/entrada").with(user(segundo.getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk());
         for (int numero = 1; numero <= 9; numero++) {
             criarPergunta("Pergunta válida " + numero, StatusPergunta.APROVADA, 4);
         }
         criarPergunta("Pendente", StatusPergunta.PENDENTE, 4);
 
-        mvc.perform(post(rota + "/partida/iniciar").with(anfitriao)).andExpect(status().isConflict());
+        mvc.perform(post(rota + "/partida/iniciar").with(anfitriao)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.mensagem").value(
+                        "São necessárias pelo menos 10 perguntas aprovadas e válidas para iniciar a partida"));
         mvc.perform(get(rota).with(anfitriao))
                 .andExpect(status().isOk()).andExpect(jsonPath("$.status").value("PREPARACAO"));
         org.junit.jupiter.api.Assertions.assertEquals(0,
@@ -698,6 +706,27 @@ class PartidaIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("EM_ANDAMENTO"))
                 .andExpect(jsonPath("$.participantes.length()").value(1));
+    }
+
+    @Test
+    void limitaSalaA14JogadoresEPreservaReconexao() throws Exception {
+        String rota = criarSalaComPartida();
+        var primeiroConvidado = user(segundo.getEmail()).roles("USUARIO");
+        mvc.perform(post(rota + "/entrada").with(primeiroConvidado)).andExpect(status().isOk());
+        for (int total = 3; total <= 14; total++) {
+            var convidado = user(usuario("convidado-" + total).getEmail()).roles("USUARIO");
+            mvc.perform(post(rota + "/entrada").with(convidado)).andExpect(status().isOk())
+                    .andExpect(jsonPath("$.participantes.length()").value(total));
+        }
+        var excedente = user(usuario("excedente").getEmail()).roles("USUARIO");
+        mvc.perform(post(rota + "/entrada").with(excedente)).andExpect(status().isConflict())
+                .andExpect(jsonPath("$.mensagem").value("A sala está cheia. O limite é de 14 jogadores."));
+        mvc.perform(post(rota + "/entrada").with(primeiroConvidado)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantes.length()").value(14));
+
+        mvc.perform(delete(rota + "/entrada").with(primeiroConvidado)).andExpect(status().isNoContent());
+        mvc.perform(post(rota + "/entrada").with(excedente)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantes.length()").value(14));
     }
 
     @Test

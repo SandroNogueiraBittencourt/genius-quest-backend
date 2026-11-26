@@ -31,6 +31,8 @@ import java.util.UUID;
 @Service
 public class SalaService {
     private static final int TOTAL_PERGUNTAS = 10;
+    private static final int MINIMO_JOGADORES = 2;
+    private static final int MAXIMO_JOGADORES = 14;
 
     public record Votacao(boolean aberta, UUID meuVoto, List<TotalVotos> totais) {}
 
@@ -210,6 +212,10 @@ public class SalaService {
 
         if (!salas.possuiParticipante(codigo, usuarioId)) {
             exigirPreparacao(partida);
+            if (salas.contarParticipantes(codigo) >= MAXIMO_JOGADORES) {
+                throw new RegraTemasException(HttpStatus.CONFLICT,
+                        "A sala está cheia. O limite é de " + MAXIMO_JOGADORES + " jogadores.");
+            }
             salas.adicionarParticipante(codigo, usuarioId);
         }
         return resposta(codigo, sala.anfitriaoId(), partida);
@@ -288,6 +294,10 @@ public class SalaService {
             return perguntaAtual(partida);
         }
         exigirPreparacao(partida);
+        if (salas.contarParticipantes(codigo) < MINIMO_JOGADORES) {
+            throw new RegraTemasException(HttpStatus.CONFLICT,
+                    "São necessários pelo menos " + MINIMO_JOGADORES + " jogadores para iniciar a partida.");
+        }
         int copiadas = perguntasDaPartida.copiarPerguntasAprovadas(partida.getId(),
                 partida.getTema().getId(), TOTAL_PERGUNTAS);
         if (copiadas != TOTAL_PERGUNTAS) {
