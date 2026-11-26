@@ -3,6 +3,7 @@ package br.com.geniusquest.controller;
 import br.com.geniusquest.dto.usuario.UsuarioCadastroDTO;
 import br.com.geniusquest.dto.usuario.UsuarioResponseDTO;
 import br.com.geniusquest.dto.usuario.UsuarioAtualizacaoDTO;
+import br.com.geniusquest.dto.usuario.AlterarSenhaRequest;
 
 import br.com.geniusquest.service.UsuarioService;
 
@@ -102,4 +103,13 @@ public class UsuarioController {
 		return ResponseEntity.ok(
 				service.buscarPorId(id));
 	}
+
+    @Operation(summary = "Alterar a senha da própria conta")
+    @PatchMapping("/{id}/senha")
+    public ResponseEntity<Void> alterarSenha(
+            @PathVariable UUID id,
+            @Valid @RequestBody AlterarSenhaRequest dto) {
+        service.alterarSenha(id, dto);
+        return ResponseEntity.noContent().build();
+    }
 }
