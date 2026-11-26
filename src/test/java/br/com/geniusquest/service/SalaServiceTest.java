@@ -54,6 +54,7 @@ class SalaServiceTest {
     void anfitriaoIniciaPartidaAoPrepararTodasAsPerguntas() {
         identificarUsuario(true);
         localizarPartidaDaSala();
+        when(salas.contarParticipantes(codigo)).thenReturn(2L);
         when(partida.getId()).thenReturn(partidaId);
         when(partida.getPerguntaAtual()).thenReturn(1);
         when(partida.getStatus()).thenReturn(StatusPartida.PREPARACAO);
