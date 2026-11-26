@@ -129,6 +129,52 @@ class VerificacaoEmailIntegrationTest {
     }
 
     @Test
+    void trocaSenhaSomenteDoTitularEInvalidaSessaoERecuperacao() throws Exception {
+        String email = "troca-senha-" + UUID.randomUUID() + "@example.com";
+        String senhaAtual = "SenhaTeste123!";
+        String novaSenha = "NovaSenha123!";
+        enviar("/api/usuarios", """
+                {"nome":"Pessoa Teste","email":"%s","senha":"%s"}
+                """.formatted(email, senhaAtual)).andExpect(status().isCreated());
+        ArgumentCaptor<String> cadastro = ArgumentCaptor.forClass(String.class);
+        verify(emailService).enviarCodigoVerificacao(eq(email), eq("Pessoa Teste"), cadastro.capture());
+        confirmar(email, cadastro.getValue()).andExpect(status().isNoContent());
+        UUID id = jdbc.queryForObject("SELECT id FROM usuarios WHERE email = ?", UUID.class, email);
+        String token = logar(email, senhaAtual);
+        String corpo = """
+                {"senhaAtual":"%s","novaSenha":"%s"}
+                """.formatted(senhaAtual, novaSenha);
+
+        mvc.perform(patch("/api/usuarios/{id}/senha", id)
+                .contentType(MediaType.APPLICATION_JSON).content(corpo))
+                .andExpect(status().isUnauthorized());
+        trocarSenha(UUID.randomUUID(), token, corpo).andExpect(status().isForbidden());
+        trocarSenha(id, token, corpo.replace(senhaAtual, "SenhaIncorreta1!"))
+                .andExpect(status().isForbidden())
+                .andExpect(jsonPath("$.mensagem").value("A senha atual está incorreta."));
+        trocarSenha(id, token, corpo.replace(novaSenha, "senhafraca123"))
+                .andExpect(status().isBadRequest());
+
+        enviar("/api/auth/esqueci-senha", """
+                {"email":"%s"}
+                """.formatted(email)).andExpect(status().isOk());
+        ArgumentCaptor<String> recuperacao = ArgumentCaptor.forClass(String.class);
+        verify(emailService).enviarCodigoRecuperacao(eq(email), eq("Pessoa Teste"),
+                recuperacao.capture(), anyString());
+
+        trocarSenha(id, token, corpo).andExpect(status().isNoContent());
+        mvc.perform(get("/api/usuarios/{id}", id).header("Authorization", "Bearer " + token))
+                .andExpect(status().isUnauthorized());
+        enviar("/api/auth/login", """
+                {"email":"%s","senha":"%s"}
+                """.formatted(email, senhaAtual)).andExpect(status().isUnauthorized());
+        enviar("/api/auth/redefinir-senha", """
+                {"token":"%s","novaSenha":"OutraSenha123!"}
+                """.formatted(recuperacao.getValue())).andExpect(status().isBadRequest());
+        logar(email, novaSenha);
+    }
+
+    @Test
     void atualizaBancoV21ComContaERecuperacaoExistentes() {
         String schema = "upgrade_email_" + UUID.randomUUID().toString().replace("-", "");
         Flyway.configure().dataSource(dataSource).schemas(schema).target("21").load().migrate();
@@ -159,6 +205,12 @@ class VerificacaoEmailIntegrationTest {
                 .contentType(MediaType.APPLICATION_JSON).content("""
                         {"email":"%s","senhaAtual":"%s"}
                         """.formatted(novo, senha)));
+    }
+
+    private ResultActions trocarSenha(UUID id, String token, String corpo) throws Exception {
+        return mvc.perform(patch("/api/usuarios/{id}/senha", id)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content(corpo));
     }
 
     private ResultActions confirmar(String email, String codigo) throws Exception {

@@ -3,10 +3,12 @@ package br.com.geniusquest.service;
 import br.com.geniusquest.dto.usuario.UsuarioCadastroDTO;
 import br.com.geniusquest.dto.usuario.UsuarioResponseDTO;
 import br.com.geniusquest.dto.usuario.UsuarioAtualizacaoDTO;
+import br.com.geniusquest.dto.usuario.AlterarSenhaRequest;
 import br.com.geniusquest.entity.Usuario;
 import br.com.geniusquest.exception.EmailJaCadastradoException;
 import br.com.geniusquest.mapper.UsuarioMapper;
 import br.com.geniusquest.repository.UsuarioRepository;
+import br.com.geniusquest.repository.TokenRecuperacaoSenhaRepository;
 import br.com.geniusquest.exception.RegraTemasException;
 import org.springframework.http.HttpStatus;
 
@@ -19,6 +21,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import br.com.geniusquest.exception.UsuarioNaoEncontradoException;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,16 +32,20 @@ public class UsuarioService {
     private final UsuarioMapper mapper;
     private final PasswordEncoder passwordEncoder;
     private final VerificacaoEmailService verificacao;
+    private final TokenRecuperacaoSenhaRepository recuperacao;
 
     public UsuarioService(
             UsuarioRepository repository,
             UsuarioMapper mapper,
-            PasswordEncoder passwordEncoder, VerificacaoEmailService verificacao) {
+            PasswordEncoder passwordEncoder,
+            VerificacaoEmailService verificacao,
+            TokenRecuperacaoSenhaRepository recuperacao) {
 
         this.repository = repository;
         this.mapper = mapper;
         this.passwordEncoder = passwordEncoder;
         this.verificacao = verificacao;
+        this.recuperacao = recuperacao;
     }
 
     @Transactional
@@ -105,6 +112,22 @@ public class UsuarioService {
         }
 
         return mapper.toResponse(usuario);
+    }
+
+    @Transactional
+    @PreAuthorize("@usuarioAccessPolicy.isOwner(#p0, authentication)")
+    public void alterarSenha(UUID id, AlterarSenhaRequest dto) {
+        Usuario usuario = repository.bloquearPorId(id)
+                .orElseThrow(UsuarioNaoEncontradoException::new);
+
+        if (dto.senhaAtual().getBytes(StandardCharsets.UTF_8).length > 72
+                || !passwordEncoder.matches(dto.senhaAtual(), usuario.getSenha())) {
+            throw new RegraTemasException(HttpStatus.FORBIDDEN, "A senha atual está incorreta.");
+        }
+
+        usuario.setSenha(passwordEncoder.encode(dto.novaSenha()));
+        usuario.incrementarVersaoCredenciais();
+        recuperacao.invalidarTokensAbertos(id);
     }
 
     @Transactional(readOnly = true)
