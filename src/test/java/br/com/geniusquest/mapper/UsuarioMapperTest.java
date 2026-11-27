@@ -27,7 +27,7 @@ class UsuarioMapperTest {
 
         var json = JsonMapper.builder().build().valueToTree(mapper.toResponse(usuario));
 
-        assertEquals("teste@exemplo.test", json.get("email").asText());
+        assertEquals("teste@exemplo.test", json.get("email").asString());
         assertFalse(json.has("senha"));
         assertFalse(json.has("versaoCredenciais"));
     }
