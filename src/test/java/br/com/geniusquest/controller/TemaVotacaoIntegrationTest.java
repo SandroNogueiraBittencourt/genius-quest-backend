@@ -171,6 +171,39 @@ class TemaVotacaoIntegrationTest {
     }
 
     @Test
+    void administradorCriaCategoriaAprovadaEJaPodePublicarTemaNela() throws Exception {
+        Usuario admin = usuario("criador-admin@geniusquest.test");
+        admin.setPerfil(PerfilUsuario.ADMIN);
+        usuarios.saveAndFlush(admin);
+        var contaAdmin = user(admin.getEmail()).roles("ADMIN");
+        var contaComum = user(jogador.getEmail()).roles("USUARIO");
+        String nome = "Categoria do administrador";
+        String titulo = "Tema do administrador";
+
+        String categoriaCriada = mvc.perform(post("/api/categorias").with(contaAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(java.util.Map.of("nome", nome))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("APROVADA"))
+                .andReturn().getResponse().getContentAsString();
+        String categoriaId = json.readTree(categoriaCriada).get("id").asText();
+
+        mvc.perform(post("/api/temas").with(contaAdmin)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(java.util.Map.of("categoriaId", categoriaId, "titulo", titulo))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("APROVADO"))
+                .andExpect(jsonPath("$.autorId").value(admin.getId().toString()));
+
+        mvc.perform(get("/api/categorias/aprovadas").with(contaComum))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].nome", hasItem(nome)));
+        mvc.perform(get("/api/temas").with(contaComum))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].titulo", hasItem(titulo)));
+    }
+
+    @Test
     @WithMockUser(username = "segundo@geniusquest.test", roles = "USUARIO")
     void outroJogadorNaoConsultaTemaPendente() throws Exception {
         mvc.perform(get("/api/temas/{id}", tema.getId())).andExpect(status().isNotFound());
