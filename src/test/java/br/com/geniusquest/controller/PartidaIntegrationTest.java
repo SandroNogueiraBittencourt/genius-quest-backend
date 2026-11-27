@@ -279,7 +279,7 @@ class PartidaIntegrationTest {
         mvc.perform(post(respostas).with(anfitriao).contentType(MediaType.APPLICATION_JSON)
                 .content(pedidoResposta(1, 2)))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.perguntaAtual").value(1))
+                .andExpect(jsonPath("$.perguntaAtual").value(2))
                 .andExpect(jsonPath("$.acertou").doesNotExist());
         mvc.perform(post(respostas).with(anfitriao).contentType(MediaType.APPLICATION_JSON)
                 .content(pedidoResposta(1, 0))).andExpect(status().isConflict());
@@ -396,7 +396,7 @@ class PartidaIntegrationTest {
     }
 
     @Test
-    void saidaLiberaProximaPerguntaEAnfitriaoPodeFecharSala() throws Exception {
+    void saidaNaoAlteraProgressoIndividualEAnfitriaoPodeFecharSala() throws Exception {
         String rota = criarSalaComPartida();
         var anfitriao = user(primeiro.getEmail()).roles("USUARIO");
         var convidado = user(segundo.getEmail()).roles("USUARIO");
@@ -408,7 +408,7 @@ class PartidaIntegrationTest {
         mvc.perform(post(rota + "/partida/iniciar").with(anfitriao)).andExpect(status().isOk());
         mvc.perform(post(rota + "/partida/respostas").with(anfitriao)
                 .contentType(MediaType.APPLICATION_JSON).content(pedidoResposta(1, 2)))
-                .andExpect(status().isOk()).andExpect(jsonPath("$.perguntaAtual").value(1));
+                .andExpect(status().isOk()).andExpect(jsonPath("$.perguntaAtual").value(2));
         mvc.perform(delete(rota + "/entrada").with(convidado)).andExpect(status().isNoContent());
         mvc.perform(get(rota).with(convidado)).andExpect(status().isNotFound());
         mvc.perform(get(rota + "/partida/pergunta-atual").with(anfitriao))
@@ -419,6 +419,35 @@ class PartidaIntegrationTest {
                 .andExpect(jsonPath("$.encerrada").value(true))
                 .andExpect(jsonPath("$.status").value("CANCELADA"));
         mvc.perform(post(rota + "/entrada").with(convidado)).andExpect(status().isConflict());
+    }
+
+    @Test
+    void concluiPartidaQuandoConvidadoPendenteSaiEAnfitriaoJaTerminou() throws Exception {
+        String rota = criarSalaComPartida();
+        var anfitriao = user(primeiro.getEmail()).roles("USUARIO");
+        var convidado = user(segundo.getEmail()).roles("USUARIO");
+        mvc.perform(post(rota + "/entrada").with(convidado)).andExpect(status().isOk());
+        for (int numero = 1; numero <= 10; numero++) {
+            criarPergunta("Pergunta " + numero, StatusPergunta.APROVADA, 4);
+        }
+        var inicio = mvc.perform(post(rota + "/partida/iniciar").with(anfitriao))
+                .andExpect(status().isOk()).andReturn();
+        String partidaId = com.fasterxml.jackson.databind.json.JsonMapper.builder().build()
+                .readTree(inicio.getResponse().getContentAsString()).get("partidaId").asText();
+        for (int numero = 1; numero <= 10; numero++) {
+            mvc.perform(post(rota + "/partida/respostas").with(anfitriao)
+                    .contentType(MediaType.APPLICATION_JSON).content(pedidoResposta(numero, 2)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.status").value("EM_ANDAMENTO"));
+        }
+
+        mvc.perform(delete(rota + "/entrada").with(convidado)).andExpect(status().isNoContent());
+        mvc.perform(get(rota).with(anfitriao)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CONCLUIDA"));
+        mvc.perform(get(rota + "/partidas/" + partidaId + "/resultado").with(anfitriao))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.classificacao.length()").value(1))
+                .andExpect(jsonPath("$.classificacao[0].acertos").value(10));
     }
 
     @Test
