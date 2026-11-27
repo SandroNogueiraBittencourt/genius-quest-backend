@@ -5,6 +5,7 @@ import br.com.geniusquest.entity.StatusTema;
 import br.com.geniusquest.service.TemaService;
 import br.com.geniusquest.service.VotacaoService;
 import br.com.geniusquest.web.Paginacao;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.web.PagedModel;
@@ -29,8 +30,8 @@ public class TemaController {
 
     @PostMapping
     public ResponseEntity<TemaResponseDTO> sugerir(@Valid @RequestBody TemaCadastroDTO dto,
-            Authentication auth) {
-        TemaResponseDTO tema = temas.sugerir(dto, auth.getName());
+            Authentication auth, HttpServletRequest request) {
+        TemaResponseDTO tema = temas.sugerir(dto, auth.getName(), request.isUserInRole("ADMIN"));
         return ResponseEntity.created(URI.create("/api/temas/" + tema.id())).body(tema);
     }
 

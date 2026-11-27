@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 
 import org.springframework.data.web.PagedModel;
@@ -47,10 +48,10 @@ public class CategoriaController {
     })
     @PostMapping
     public ResponseEntity<CategoriaResponseDTO> cadastrar(
-            @Valid @RequestBody CategoriaCadastroDTO dto) {
+            @Valid @RequestBody CategoriaCadastroDTO dto, HttpServletRequest request) {
 
         CategoriaResponseDTO categoria =
-                service.cadastrar(dto);
+                service.cadastrar(dto, request.isUserInRole("ADMIN"));
 
         URI location = URI.create(
                 "/api/categorias/" + categoria.id()

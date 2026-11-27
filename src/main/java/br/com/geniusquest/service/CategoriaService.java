@@ -34,7 +34,7 @@ public class CategoriaService {
     }
 
     @Transactional
-    public CategoriaResponseDTO cadastrar(CategoriaCadastroDTO dto) {
+    public CategoriaResponseDTO cadastrar(CategoriaCadastroDTO dto, boolean administrador) {
 
         validarNome(dto.nome());
         validarDescricao(dto.descricao());
@@ -45,6 +45,7 @@ public class CategoriaService {
         }
 
         Categoria categoria = mapper.toEntity(dto);
+        categoria.setStatus(administrador ? StatusCategoria.APROVADA : StatusCategoria.PENDENTE);
 
         Categoria categoriaSalva = repository.save(categoria);
 
