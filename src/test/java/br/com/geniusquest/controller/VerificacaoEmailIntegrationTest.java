@@ -11,6 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
@@ -33,6 +34,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class VerificacaoEmailIntegrationTest {
+    private final String origem = "2001:db8::"
+            + UUID.randomUUID().toString().substring(24).replaceFirst("(.{4})(.{4})(.{4})", "$1:$2:$3");
+
     @Autowired
     private MockMvc mvc;
 
@@ -118,7 +122,8 @@ class VerificacaoEmailIntegrationTest {
                 {"codigo":"%s"}
                 """.formatted(troca.getValue());
         enviar("/api/auth/confirmar-troca-email", corpo).andExpect(status().isUnauthorized());
-        mvc.perform(post("/api/auth/confirmar-troca-email").header("Authorization", "Bearer " + token)
+        mvc.perform(post("/api/auth/confirmar-troca-email").with(this::definirOrigem)
+                .header("Authorization", "Bearer " + token)
                 .contentType(MediaType.APPLICATION_JSON).content(corpo)).andExpect(status().isNoContent());
         mvc.perform(get("/api/usuarios/{id}", id).header("Authorization", "Bearer " + token))
                 .andExpect(status().isUnauthorized());
@@ -230,6 +235,12 @@ class VerificacaoEmailIntegrationTest {
     }
 
     private ResultActions enviar(String caminho, String json) throws Exception {
-        return mvc.perform(post(caminho).contentType(MediaType.APPLICATION_JSON).content(json));
+        return mvc.perform(post(caminho).with(this::definirOrigem)
+                .contentType(MediaType.APPLICATION_JSON).content(json));
+    }
+
+    private MockHttpServletRequest definirOrigem(MockHttpServletRequest request) {
+        request.setRemoteAddr(origem);
+        return request;
     }
 }
