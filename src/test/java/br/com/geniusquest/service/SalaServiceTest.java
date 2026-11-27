@@ -172,6 +172,32 @@ class SalaServiceTest {
     }
 
     @Test
+    void salaCheiaRecusaNovoParticipanteAntesDeGravarEntrada() {
+        identificarUsuario(true);
+        when(salas.buscarParaAtualizacao(codigo)).thenReturn(Optional.of(new Sala(null, usuarioId)));
+        when(salas.contarParticipantes(codigo)).thenReturn(14L);
+
+        var erro = assertThrows(RegraTemasException.class, () -> service.entrar(codigo, EMAIL));
+
+        assertEquals(HttpStatus.CONFLICT, erro.getStatus());
+        verify(salas, never()).adicionarParticipante(codigo, usuarioId);
+    }
+
+    @Test
+    void tentativaDeIniciarSozinhoNaoCopiaPerguntasNemMudaEstado() {
+        identificarUsuario(true);
+        localizarPartidaDaSala();
+        when(partida.getStatus()).thenReturn(StatusPartida.PREPARACAO);
+        when(salas.contarParticipantes(codigo)).thenReturn(1L);
+
+        var erro = assertThrows(RegraTemasException.class, () -> service.iniciarPartida(codigo, EMAIL));
+
+        assertEquals(HttpStatus.CONFLICT, erro.getStatus());
+        verifyNoInteractions(perguntasDaPartida);
+        verify(partida, never()).iniciar();
+    }
+
+    @Test
     void impedeConsultaPorQuemNaoParticipa() {
         identificarUsuario(true);
 
