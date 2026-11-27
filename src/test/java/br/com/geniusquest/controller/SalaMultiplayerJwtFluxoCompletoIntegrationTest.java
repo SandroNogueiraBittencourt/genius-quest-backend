@@ -302,6 +302,36 @@ class SalaMultiplayerJwtFluxoCompletoIntegrationTest {
                 .andExpect(jsonPath("$.participantes.length()").value(1));
     }
 
+    @Test
+    void minimoDeJogadoresConsideraQuemAindaEstaNaSala() throws Exception {
+        String sala = criarSala();
+        String entrada = sala + "/entrada";
+        String iniciar = sala + "/partida/iniciar";
+        String anfitriaoLogado = bearer(jwtAnfitriao);
+        String convidadoLogado = bearer(jwtConvidado);
+        mvc.perform(put(sala + "/tema").header(HttpHeaders.AUTHORIZATION, anfitriaoLogado)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(JSON.writeValueAsString(java.util.Map.of("temaId", tema.getId()))))
+                .andExpect(status().isOk());
+        mvc.perform(post(entrada).header(HttpHeaders.AUTHORIZATION, convidadoLogado))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantes.length()").value(2));
+        mvc.perform(delete(entrada).header(HttpHeaders.AUTHORIZATION, convidadoLogado))
+                .andExpect(status().isNoContent());
+        mvc.perform(post(iniciar).header(HttpHeaders.AUTHORIZATION, anfitriaoLogado))
+                .andExpect(status().isConflict())
+                .andExpect(jsonPath("$.mensagem").value("São necessários pelo menos 2 jogadores para iniciar a partida."));
+        mvc.perform(get(sala).header(HttpHeaders.AUTHORIZATION, anfitriaoLogado))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.participantes.length()").value(1))
+                .andExpect(jsonPath("$.status").value("PREPARACAO"));
+        mvc.perform(post(entrada).header(HttpHeaders.AUTHORIZATION, convidadoLogado))
+                .andExpect(status().isOk());
+        mvc.perform(post(iniciar).header(HttpHeaders.AUTHORIZATION, anfitriaoLogado))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numero").value(1));
+    }
+
     private Usuario criarUsuario(String prefixo) {
         Usuario usuario = new Usuario();
         usuario.setNome(prefixo);

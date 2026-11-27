@@ -91,4 +91,25 @@ class PaginacaoSegurancaIntegrationTest {
                 .andExpect(jsonPath("$.content").isArray())
                 .andExpect(jsonPath("$.page.number").value(0));
     }
+
+    @Test
+    @WithMockUser(roles = "USUARIO")
+    void usuarioComumPodeListarTemasAprovadosMasNaoPodeUsarPaginacaoDaModeracao() throws Exception {
+        mockMvc.perform(get("/api/temas").param("page", "0").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.page.size").value(1));
+        mockMvc.perform(get("/api/temas/moderacao").param("page", "0").param("size", "1"))
+                .andExpect(status().isForbidden());
+    }
+
+    @Test
+    @WithMockUser(roles = "ADMIN")
+    void administradorPodePaginarTemasNaModeracao() throws Exception {
+        mockMvc.perform(get("/api/temas/moderacao").param("page", "0").param("size", "1"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.page.number").value(0))
+                .andExpect(jsonPath("$.page.size").value(1));
+    }
 }

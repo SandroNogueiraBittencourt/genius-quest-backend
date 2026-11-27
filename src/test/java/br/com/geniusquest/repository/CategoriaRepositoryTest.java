@@ -1,8 +1,10 @@
 package br.com.geniusquest.repository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.Locale;
@@ -13,6 +15,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -90,5 +94,33 @@ class CategoriaRepositoryTest {
                 DataIntegrityViolationException.class,
                 () -> criar(nome, StatusCategoria.PENDENTE)
         );
+    }
+
+    @Test
+    void buscaNomeSemDiferenciarCaixaMesmoParaCategoriaRemovida() {
+        String nome = nomeUnico("Tecnologia");
+        assertFalse(categoriaRepository.existsByNomeIgnoreCase(nome));
+
+        criar(nome, StatusCategoria.REMOVIDA);
+
+        assertTrue(categoriaRepository.existsByNomeIgnoreCase(nome.toUpperCase(Locale.ROOT)));
+    }
+
+    @Test
+    void paginaCategoriasComFiltroDeStatusEOrdenacao() {
+        String prefixo = nomeUnico("Pagina");
+        Categoria segunda = criar(prefixo + " B", StatusCategoria.APROVADA);
+        Categoria primeira = criar(prefixo + " A", StatusCategoria.APROVADA);
+        criar(prefixo + " AA", StatusCategoria.PENDENTE);
+        var esperadas = categoriaRepository.findByStatusOrderByNomeAsc(StatusCategoria.APROVADA);
+        int indice = esperadas.indexOf(primeira);
+        Sort ordem = Sort.by("nome", "id");
+
+        var pagina = categoriaRepository.findByStatus(StatusCategoria.APROVADA, PageRequest.of(indice, 1, ordem));
+        var seguinte = categoriaRepository.findByStatus(StatusCategoria.APROVADA, pagina.nextPageable());
+
+        assertEquals(List.of(primeira.getId()), pagina.map(Categoria::getId).getContent());
+        assertEquals(List.of(segunda.getId()), seguinte.map(Categoria::getId).getContent());
+        assertEquals(esperadas.size(), pagina.getTotalElements());
     }
 }
