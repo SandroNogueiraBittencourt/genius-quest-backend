@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -256,7 +257,7 @@ public class SalaService {
         salas.removerParticipante(codigo, usuarioId);
         if (partida == null) return;
         if (partida.getStatus() == StatusPartida.EM_ANDAMENTO) {
-            avancarSeTodosResponderam(codigo, partida, perguntaAtual(partida).totalPerguntas());
+            concluirSeTodosTerminaram(codigo, partida);
         } else if (partida.getStatus() == StatusPartida.CONCLUIDA) {
             ContinuacaoSalaDTO votos = continuacao(codigo, partida.getId(), sala.anfitriaoId());
             if (votos.status() == Status.AGUARDANDO) {
@@ -291,7 +292,9 @@ public class SalaService {
             throw new RegraTemasException(HttpStatus.CONFLICT, "Defina o tema da sala antes de iniciar a partida");
         }
         if (partida.getStatus() == StatusPartida.EM_ANDAMENTO) {
-            return perguntaAtual(partida);
+            return perguntasDaPartida.proximaPergunta(partida.getId(), anfitriao.getId())
+                    .orElseThrow(() -> new RegraTemasException(HttpStatus.CONFLICT,
+                            "Você já terminou suas perguntas. Aguarde os outros jogadores."));
         }
         exigirPreparacao(partida);
         if (salas.contarParticipantes(codigo) < MINIMO_JOGADORES) {
@@ -305,11 +308,13 @@ public class SalaService {
                     "São necessárias pelo menos 10 perguntas aprovadas e válidas para iniciar a partida");
         }
         partida.iniciar();
-        return perguntaAtual(partida);
+        return perguntasDaPartida.buscar(partida.getId(), 1)
+                .orElseThrow(() -> new RegraTemasException(HttpStatus.CONFLICT,
+                        "A partida não tem perguntas preparadas"));
     }
 
     @Transactional(readOnly = true)
-    public PerguntaPartidaDTO consultarPerguntaAtual(UUID codigo, String email) {
+    public Optional<PerguntaPartidaDTO> consultarPerguntaAtual(UUID codigo, String email) {
         UUID usuarioId = usuarioAtivo(email).getId();
         exigirParticipante(codigo, usuarioId);
         Sala sala = salas.buscar(codigo).orElseThrow(this::salaNaoEncontrada);
@@ -318,7 +323,7 @@ public class SalaService {
         if (partida == null || partida.getStatus() != StatusPartida.EM_ANDAMENTO) {
             throw new RegraTemasException(HttpStatus.CONFLICT, "A partida ainda não está em andamento");
         }
-        return perguntaAtual(partida);
+        return perguntasDaPartida.proximaPergunta(partida.getId(), usuarioId);
     }
 
     @Transactional
@@ -330,25 +335,28 @@ public class SalaService {
         if (partida == null || partida.getStatus() != StatusPartida.EM_ANDAMENTO) {
             throw new RegraTemasException(HttpStatus.CONFLICT, "A partida não está em andamento");
         }
-        if (numero != partida.getPerguntaAtual()) {
+        PerguntaPartidaDTO atual = perguntasDaPartida.proximaPergunta(partida.getId(), usuarioId)
+                .orElseThrow(() -> new RegraTemasException(HttpStatus.CONFLICT,
+                        "Você já terminou suas perguntas. Aguarde os outros jogadores."));
+        if (numero != atual.numero()) {
             throw new RegraTemasException(HttpStatus.CONFLICT, "A resposta precisa ser para a pergunta atual");
         }
-        PerguntaPartidaDTO pergunta = perguntaAtual(partida);
         if (!perguntasDaPartida.registrarResposta(partida.getId(), numero, usuarioId, alternativaIndice)) {
             throw new RegraTemasException(HttpStatus.CONFLICT, "Você já respondeu a esta pergunta");
         }
-        avancarSeTodosResponderam(codigo, partida, pergunta.totalPerguntas());
+        PerguntaPartidaDTO proxima = perguntasDaPartida.proximaPergunta(partida.getId(), usuarioId).orElse(null);
+        if (proxima == null) {
+            concluirSeTodosTerminaram(codigo, partida);
+        }
         return new RespostaSalaDTO(numero, partida.getStatus(),
-                partida.getStatus() == StatusPartida.CONCLUIDA ? null : partida.getPerguntaAtual());
+                proxima == null ? null : proxima.numero(), proxima);
     }
 
-    private void avancarSeTodosResponderam(UUID codigo, Partida partida, int totalPerguntas) {
-        if (perguntasDaPartida.todosResponderam(codigo, partida.getId(), partida.getPerguntaAtual())) {
-            partida.avancarPergunta(totalPerguntas);
-            if (partida.getStatus() == StatusPartida.CONCLUIDA) {
-                partidas.flush();
-                resultados.registrar(partida.getId());
-            }
+    private void concluirSeTodosTerminaram(UUID codigo, Partida partida) {
+        if (perguntasDaPartida.todosConcluiram(codigo, partida.getId())) {
+            partida.concluir();
+            partidas.flush();
+            resultados.registrar(partida.getId());
         }
     }
 
@@ -369,12 +377,6 @@ public class SalaService {
             throw salaNaoEncontrada();
         }
         return new ResultadoPartidaDTO(partidaId, resultados.classificar(partidaId));
-    }
-
-    private PerguntaPartidaDTO perguntaAtual(Partida partida) {
-        return perguntasDaPartida.buscar(partida.getId(), partida.getPerguntaAtual())
-                .orElseThrow(() -> new RegraTemasException(HttpStatus.CONFLICT,
-                        "A partida não tem perguntas preparadas"));
     }
 
     @Transactional(readOnly = true)

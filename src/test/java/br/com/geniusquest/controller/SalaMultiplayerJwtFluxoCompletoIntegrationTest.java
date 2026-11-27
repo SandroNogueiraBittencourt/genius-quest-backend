@@ -172,19 +172,43 @@ class SalaMultiplayerJwtFluxoCompletoIntegrationTest {
                 .header(HttpHeaders.AUTHORIZATION, bearer(jwtIntruso))
                 .contentType(MediaType.APPLICATION_JSON).content(resposta(1, 2)))
                 .andExpect(status().isNotFound());
+        mvc.perform(post(sala + "/partida/respostas")
+                .header(HttpHeaders.AUTHORIZATION, bearer(jwtAnfitriao))
+                .contentType(MediaType.APPLICATION_JSON).content(resposta(2, 2)))
+                .andExpect(status().isConflict());
 
         for (int numero = 1; numero <= 10; numero++) {
-            mvc.perform(post(sala + "/partida/respostas")
+            var envio = mvc.perform(post(sala + "/partida/respostas")
                     .header(HttpHeaders.AUTHORIZATION, bearer(jwtAnfitriao))
                     .contentType(MediaType.APPLICATION_JSON).content(resposta(numero, 2)))
                     .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.perguntaAtual").value(numero));
+                    .andExpect(jsonPath("$.status").value("EM_ANDAMENTO"))
+                    .andExpect(jsonPath("$.proximaPergunta.respostaCorretaIndice").doesNotExist());
+            if (numero < 10) {
+                envio.andExpect(jsonPath("$.perguntaAtual").value(numero + 1))
+                        .andExpect(jsonPath("$.proximaPergunta.numero").value(numero + 1));
+            } else {
+                envio.andExpect(jsonPath("$.perguntaAtual").doesNotExist())
+                        .andExpect(jsonPath("$.proximaPergunta").doesNotExist());
+            }
             if (numero == 1) {
                 mvc.perform(post(sala + "/partida/respostas")
                         .header(HttpHeaders.AUTHORIZATION, bearer(jwtAnfitriao))
                         .contentType(MediaType.APPLICATION_JSON).content(resposta(numero, 2)))
                         .andExpect(status().isConflict());
             }
+        }
+        mvc.perform(get(sala + "/partida/pergunta-atual")
+                .header(HttpHeaders.AUTHORIZATION, bearer(jwtAnfitriao)))
+                .andExpect(status().isNoContent());
+        mvc.perform(get(sala + "/partida/pergunta-atual")
+                .header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numero").value(1));
+        mvc.perform(get(resultado).header(HttpHeaders.AUTHORIZATION, bearer(jwtAnfitriao)))
+                .andExpect(status().isConflict());
+
+        for (int numero = 1; numero <= 10; numero++) {
             mvc.perform(post(sala + "/partida/respostas")
                     .header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado))
                     .contentType(MediaType.APPLICATION_JSON).content(resposta(numero, 0)))
