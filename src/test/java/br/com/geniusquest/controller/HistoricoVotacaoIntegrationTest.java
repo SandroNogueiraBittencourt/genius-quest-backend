@@ -92,9 +92,9 @@ class HistoricoVotacaoIntegrationTest {
     @WithMockUser(username = "jogador@geniusquest.test", roles = "USUARIO")
     void mostraSomenteEncerradosOrdenadosEPaginados() throws Exception {
         novoCiclo("Ainda aberto");
-        CicloVotacao antigo = cicloFechado(
+        cicloFechado(
                 "Mais antigo", Instant.parse("2100-01-01T10:00:00Z"));
-        CicloVotacao recente = cicloFechado(
+        cicloFechado(
                 "Mais recente", Instant.parse("2100-01-02T10:00:00Z"));
 
         mvc.perform(get("/api/ciclos-votacao/historico")
