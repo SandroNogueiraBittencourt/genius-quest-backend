@@ -225,6 +225,32 @@ class PartidaIntegrationTest {
     }
 
     @Test
+    void historicoPaginadoVazioMantemMetadadosDoContrato() throws Exception {
+        mvc.perform(get("/api/partidas/minhas").param("page", "0").param("size", "10")
+                        .param("incluirSalas", "true").with(user(primeiro.getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isArray())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.page.number").value(0))
+                .andExpect(jsonPath("$.page.size").value(10))
+                .andExpect(jsonPath("$.page.totalElements").value(0))
+                .andExpect(jsonPath("$.page.totalPages").value(0));
+    }
+
+    @Test
+    void historicoPaginadoForaDaUltimaPaginaPreservaTotais() throws Exception {
+        criarPartidaDoPrimeiroUsuario();
+
+        mvc.perform(get("/api/partidas/minhas").param("page", "1").param("size", "10")
+                        .param("incluirSalas", "true").with(user(primeiro.getEmail()).roles("USUARIO")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.content").isEmpty())
+                .andExpect(jsonPath("$.page.number").value(1))
+                .andExpect(jsonPath("$.page.totalElements").value(1))
+                .andExpect(jsonPath("$.page.totalPages").value(1));
+    }
+
+    @Test
     void paginaPartidaPeloVinculoComASalaSemResultado() throws Exception {
         String rota = criarSalaComPartida();
         var convidado = user(segundo.getEmail()).roles("USUARIO");
