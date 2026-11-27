@@ -44,18 +44,18 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             FilterChain filterChain)
             throws ServletException, IOException {
 
-        String authorizationHeader =
-                request.getHeader("Authorization");
+        boolean restaurarSessao = "POST".equals(request.getMethod())
+                && request.getRequestURI().equals(request.getContextPath() + SessaoCookie.ROTA_RESTAURACAO);
+        String authorizationHeader = request.getHeader("Authorization");
+        String token = restaurarSessao ? SessaoCookie.ler(request)
+                : authorizationHeader != null && authorizationHeader.startsWith("Bearer ")
+                        ? authorizationHeader.substring(7) : null;
 
-        if (authorizationHeader == null
-                || !authorizationHeader.startsWith("Bearer ")) {
+        if (token == null) {
 
             filterChain.doFilter(request, response);
             return;
         }
-
-        String token =
-                authorizationHeader.substring(7);
 
         if (!jwtService.tokenValido(token)
                 || tokenRevocationService.estaRevogado(token)) {
@@ -102,6 +102,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder
                         .getContext()
                         .setAuthentication(authentication);
+                if (restaurarSessao) request.setAttribute(SessaoCookie.TOKEN_VALIDADO, token);
             }
         }
 

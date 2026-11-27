@@ -1,6 +1,7 @@
 package br.com.geniusquest.controller;
 
 import br.com.geniusquest.dto.auth.LoginResponseDTO;
+import br.com.geniusquest.security.JwtService;
 import br.com.geniusquest.service.AuthService;
 import br.com.geniusquest.security.TokenRevocationService;
 
@@ -31,13 +32,16 @@ class AuthControllerTest {
     @Mock
     private TokenRevocationService tokenRevocationService;
 
+    @Mock
+    private JwtService jwtService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
 
         AuthController controller =
-                new AuthController(authService, tokenRevocationService);
+                new AuthController(authService, tokenRevocationService, jwtService, true);
 
         mockMvc = MockMvcBuilders
                 .standaloneSetup(controller)
