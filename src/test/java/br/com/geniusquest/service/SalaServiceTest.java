@@ -56,7 +56,6 @@ class SalaServiceTest {
         localizarPartidaDaSala();
         when(salas.contarParticipantes(codigo)).thenReturn(2L);
         when(partida.getId()).thenReturn(partidaId);
-        when(partida.getPerguntaAtual()).thenReturn(1);
         when(partida.getStatus()).thenReturn(StatusPartida.PREPARACAO);
         when(partida.getTema()).thenReturn(tema);
         UUID temaId = UUID.randomUUID();

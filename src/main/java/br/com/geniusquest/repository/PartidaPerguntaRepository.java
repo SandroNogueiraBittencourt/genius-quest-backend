@@ -66,16 +66,34 @@ public class PartidaPerguntaRepository {
                 """, usuarioId, alternativaIndice, alternativaIndice, partidaId, numero) == 1;
     }
 
-    public boolean todosResponderam(UUID codigo, UUID partidaId, int numero) {
+    public Optional<PerguntaPartidaDTO> proximaPergunta(UUID partidaId, UUID usuarioId) {
+        return jdbc.query("""
+                SELECT p.numero, p.enunciado, p.alternativas,
+                    (SELECT count(*) FROM partida_perguntas WHERE partida_id = p.partida_id) AS total
+                FROM partida_perguntas p
+                WHERE p.partida_id = ? AND NOT EXISTS (
+                    SELECT 1 FROM partida_respostas r
+                    WHERE r.partida_id = p.partida_id AND r.numero_pergunta = p.numero
+                        AND r.usuario_id = ?
+                )
+                ORDER BY p.numero
+                LIMIT 1
+                """, (rs, row) -> new PerguntaPartidaDTO(partidaId, rs.getInt("numero"), rs.getInt("total"),
+                rs.getString("enunciado"), List.of((String[]) rs.getArray("alternativas").getArray())),
+                partidaId, usuarioId).stream().findFirst();
+    }
+
+    public boolean todosConcluiram(UUID codigo, UUID partidaId) {
         return Boolean.TRUE.equals(jdbc.queryForObject("""
                 SELECT NOT EXISTS (
                     SELECT 1 FROM sala_participantes participante
-                    WHERE participante.codigo_sala = ? AND NOT EXISTS (
+                    CROSS JOIN partida_perguntas pergunta
+                    WHERE participante.codigo_sala = ? AND pergunta.partida_id = ? AND NOT EXISTS (
                         SELECT 1 FROM partida_respostas resposta
-                        WHERE resposta.partida_id = ? AND resposta.numero_pergunta = ?
+                        WHERE resposta.partida_id = pergunta.partida_id AND resposta.numero_pergunta = pergunta.numero
                             AND resposta.usuario_id = participante.usuario_id
                     )
                 )
-                """, Boolean.class, codigo, partidaId, numero));
+                """, Boolean.class, codigo, partidaId));
     }
 }

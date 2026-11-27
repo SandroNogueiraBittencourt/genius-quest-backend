@@ -108,8 +108,10 @@ public class SalaController {
     }
 
     @GetMapping("/api/salas/{codigo}/partida/pergunta-atual")
-    public PerguntaPartidaDTO consultarPerguntaAtual(@PathVariable UUID codigo, Principal principal) {
-        return salas.consultarPerguntaAtual(codigo, principal.getName());
+    public ResponseEntity<PerguntaPartidaDTO> consultarPerguntaAtual(@PathVariable UUID codigo, Principal principal) {
+        return salas.consultarPerguntaAtual(codigo, principal.getName())
+                .map(ResponseEntity::ok)
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @PostMapping("/api/salas/{codigo}/partida/respostas")
