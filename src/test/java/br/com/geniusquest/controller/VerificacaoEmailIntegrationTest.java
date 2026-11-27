@@ -207,7 +207,7 @@ class VerificacaoEmailIntegrationTest {
         String body = enviar("/api/auth/login", """
                 {"email":"%s","senha":"%s"}
                 """.formatted(email, senha)).andExpect(status().isOk()).andReturn().getResponse().getContentAsString();
-        return JsonMapper.builder().build().readTree(body).get("token").asText();
+        return JsonMapper.builder().build().readTree(body).get("token").asString();
     }
 
     private ResultActions alterar(UUID id, String token, String novo, String senha) throws Exception {
