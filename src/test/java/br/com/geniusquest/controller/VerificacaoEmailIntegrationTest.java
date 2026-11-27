@@ -141,6 +141,8 @@ class VerificacaoEmailIntegrationTest {
         confirmar(email, cadastro.getValue()).andExpect(status().isNoContent());
         UUID id = jdbc.queryForObject("SELECT id FROM usuarios WHERE email = ?", UUID.class, email);
         String token = logar(email, senhaAtual);
+        String outroDispositivo = logar(email, senhaAtual);
+        assertNotEquals(token, outroDispositivo);
         String corpo = """
                 {"senhaAtual":"%s","novaSenha":"%s"}
                 """.formatted(senhaAtual, novaSenha);
@@ -154,6 +156,12 @@ class VerificacaoEmailIntegrationTest {
                 .andExpect(jsonPath("$.mensagem").value("A senha atual está incorreta."));
         trocarSenha(id, token, corpo.replace(novaSenha, "senhafraca123"))
                 .andExpect(status().isBadRequest());
+        trocarSenha(id, token, """
+                {"novaSenha":"%s"}
+                """.formatted(novaSenha)).andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.campos.senhaAtual").exists());
+        mvc.perform(get("/api/usuarios/{id}", id).header("Authorization", "Bearer " + outroDispositivo))
+                .andExpect(status().isOk());
 
         enviar("/api/auth/esqueci-senha", """
                 {"email":"%s"}
@@ -163,8 +171,10 @@ class VerificacaoEmailIntegrationTest {
                 recuperacao.capture(), anyString());
 
         trocarSenha(id, token, corpo).andExpect(status().isNoContent());
-        mvc.perform(get("/api/usuarios/{id}", id).header("Authorization", "Bearer " + token))
-                .andExpect(status().isUnauthorized());
+        for (String sessaoAnterior : java.util.List.of(token, outroDispositivo)) {
+            mvc.perform(get("/api/usuarios/{id}", id).header("Authorization", "Bearer " + sessaoAnterior))
+                    .andExpect(status().isUnauthorized());
+        }
         enviar("/api/auth/login", """
                 {"email":"%s","senha":"%s"}
                 """.formatted(email, senhaAtual)).andExpect(status().isUnauthorized());
