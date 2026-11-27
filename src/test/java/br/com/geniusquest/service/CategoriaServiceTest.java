@@ -92,7 +92,7 @@ class CategoriaServiceTest {
                 .thenReturn(resposta);
 
         CategoriaResponseDTO resultado =
-                service.cadastrar(dto);
+                service.cadastrar(dto, false);
 
         assertNotNull(resultado);
         assertEquals(categoriaId, resultado.id());
@@ -123,7 +123,7 @@ class CategoriaServiceTest {
 
         assertThrows(
                 CategoriaJaCadastradaException.class,
-                () -> service.cadastrar(dto)
+                () -> service.cadastrar(dto, false)
         );
 
         verify(mapper, never())
@@ -402,21 +402,21 @@ class CategoriaServiceTest {
     @Test
     void naoDeveCadastrarNomeNulo() {
         assertThrows(CategoriaInvalidaException.class,
-                () -> service.cadastrar(new CategoriaCadastroDTO(null, null)));
+                () -> service.cadastrar(new CategoriaCadastroDTO(null, null), false));
         verifyNoInteractions(repository);
     }
 
     @Test
     void naoDeveCadastrarNomeDeUmaLetraMesmoComEspacos() {
         assertThrows(CategoriaInvalidaException.class,
-                () -> service.cadastrar(new CategoriaCadastroDTO(" A ", null)));
+                () -> service.cadastrar(new CategoriaCadastroDTO(" A ", null), false));
         verifyNoInteractions(repository);
     }
 
     @Test
     void naoDeveCadastrarDescricaoComMaisDe255Caracteres() {
         assertThrows(CategoriaInvalidaException.class,
-                () -> service.cadastrar(new CategoriaCadastroDTO("Tecnologia", "x".repeat(256))));
+                () -> service.cadastrar(new CategoriaCadastroDTO("Tecnologia", "x".repeat(256)), false));
         verifyNoInteractions(repository);
     }
 
