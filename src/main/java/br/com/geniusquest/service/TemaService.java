@@ -28,7 +28,7 @@ public class TemaService {
     }
 
     @Transactional
-    public TemaResponseDTO sugerir(TemaCadastroDTO dto, String email) {
+    public TemaResponseDTO sugerir(TemaCadastroDTO dto, String email, boolean administrador) {
         Usuario autor = usuario(email);
         Categoria categoria = categorias.findById(dto.categoriaId())
                 .orElseThrow(() -> new RegraTemasException(HttpStatus.NOT_FOUND, "Categoria não encontrada"));
@@ -47,6 +47,7 @@ public class TemaService {
         }
 
         Tema tema = new Tema();
+        tema.setStatus(administrador ? StatusTema.APROVADO : StatusTema.PENDENTE);
         tema.setAutor(autor);
         tema.setCategoria(categoria);
         tema.setTitulo(titulo);
