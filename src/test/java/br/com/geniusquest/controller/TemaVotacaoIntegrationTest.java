@@ -36,14 +36,13 @@ class TemaVotacaoIntegrationTest {
     @Autowired VotoTemaRepository votos;
 
     private Usuario jogador;
-    private Usuario segundo;
     private Categoria categoria;
     private Tema tema;
 
     @BeforeEach
     void preparar() {
         jogador = usuario("jogador@geniusquest.test");
-        segundo = usuario("segundo@geniusquest.test");
+        usuario("segundo@geniusquest.test");
         categoria = new Categoria();
         categoria.setNome("Conhecimento");
         categoria.setStatus(StatusCategoria.APROVADA);
