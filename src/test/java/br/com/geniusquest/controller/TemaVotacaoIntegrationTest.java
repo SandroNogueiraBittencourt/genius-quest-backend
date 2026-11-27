@@ -17,6 +17,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.hamcrest.Matchers.hasItem;
+import static org.hamcrest.Matchers.not;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.user;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -151,6 +153,21 @@ class TemaVotacaoIntegrationTest {
         mvc.perform(get("/api/temas")).andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(0));
         mvc.perform(get("/api/temas/{id}", tema.getId())).andExpect(status().isOk());
+    }
+
+    @Test
+    void categoriaSugeridaPorUsuarioComumContinuaPendente() throws Exception {
+        String nome = "Categoria sugerida";
+        var contaComum = user(jogador.getEmail()).roles("USUARIO");
+        mvc.perform(post("/api/categorias").with(contaComum)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(json.writeValueAsString(java.util.Map.of("nome", nome))))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.status").value("PENDENTE"));
+
+        mvc.perform(get("/api/categorias/aprovadas").with(contaComum))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[*].nome", not(hasItem(nome))));
     }
 
     @Test
