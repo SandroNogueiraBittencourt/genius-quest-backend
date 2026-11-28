@@ -14,8 +14,9 @@ public record UsuarioAtualizacaoDTO(
 
         @Email(message = "Informe um e-mail válido")
         @Size(
+                min = 1,
                 max = 150,
-                message = "O e-mail deve possuir no máximo 150 caracteres"
+                message = "O e-mail deve possuir entre 1 e 150 caracteres"
         )
         String email,
 

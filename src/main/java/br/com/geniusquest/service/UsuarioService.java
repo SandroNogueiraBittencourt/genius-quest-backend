@@ -23,6 +23,7 @@ import br.com.geniusquest.exception.UsuarioNaoEncontradoException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -53,7 +54,7 @@ public class UsuarioService {
 
         String email = dto.email()
                 .trim()
-                .toLowerCase();
+                .toLowerCase(Locale.ROOT);
 
         if (repository.existsByEmailIgnoreCase(email)) {
             throw new EmailJaCadastradoException();
@@ -93,7 +94,7 @@ public class UsuarioService {
 
             String novoEmail = dto.email()
                     .trim()
-                    .toLowerCase();
+                    .toLowerCase(Locale.ROOT);
 
             repository.findByEmailIgnoreCase(novoEmail)
                     .filter(usuarioExistente -> !usuarioExistente.getId().equals(id))
@@ -103,7 +104,7 @@ public class UsuarioService {
 
             if (!novoEmail.equalsIgnoreCase(usuario.getEmail())) {
                 verificacao.limitarSolicitacaoTroca(usuario);
-                if (dto.senhaAtual() == null || dto.senhaAtual().getBytes(java.nio.charset.StandardCharsets.UTF_8).length > 72
+                if (dto.senhaAtual() == null || dto.senhaAtual().getBytes(StandardCharsets.UTF_8).length > 72
                         || !passwordEncoder.matches(dto.senhaAtual(), usuario.getSenha())) {
                     throw new RegraTemasException(HttpStatus.FORBIDDEN, "Confirme sua senha atual para trocar o e-mail.");
                 }
