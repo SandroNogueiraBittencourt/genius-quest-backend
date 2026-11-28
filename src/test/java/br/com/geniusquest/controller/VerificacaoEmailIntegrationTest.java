@@ -1,6 +1,8 @@
 package br.com.geniusquest.controller;
 
 import br.com.geniusquest.service.EmailService;
+import br.com.geniusquest.security.SessaoCookie;
+import jakarta.servlet.http.Cookie;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.flywaydb.core.Flyway;
@@ -320,6 +322,26 @@ class VerificacaoEmailIntegrationTest {
         verify(emailService, never()).enviarCodigoVerificacao(eq(outroDestino), anyString(), anyString());
         confirmarTroca(conta, codigo).andExpect(status().isNoContent());
         assertEquals(destino, emailDaConta(conta));
+    }
+
+    @Test
+    void cookieAnteriorNaoRestauraSessaoDepoisDaTrocaDeEmail() throws Exception {
+        ContaTeste conta = cadastrarContaVerificada();
+        String destino = "destino-" + UUID.randomUUID() + "@example.com";
+        String codigo = solicitarTroca(conta, destino);
+        restaurarSessao(conta.token()).andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(conta.email()));
+
+        confirmarTroca(conta, codigo).andExpect(status().isNoContent());
+        restaurarSessao(conta.token()).andExpect(status().isUnauthorized());
+        restaurarSessao(logar(destino, SENHA_CONTA_TESTE)).andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(destino));
+    }
+
+    private ResultActions restaurarSessao(String token) throws Exception {
+        return mvc.perform(post(SessaoCookie.ROTA_RESTAURACAO)
+                .cookie(new Cookie(SessaoCookie.NOME, token))
+                .contentType(MediaType.APPLICATION_JSON).content("{}"));
     }
 
     @Test
