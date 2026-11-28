@@ -17,6 +17,24 @@ class CategoriaMapperTest {
     private final CategoriaMapper mapper = new CategoriaMapper();
 
     @Test
+    void preservaEspacosInternosEmNomeEDescricao() {
+        var categoria = mapper.toEntity(new CategoriaCadastroDTO("  Artes e cultura  ", "  Historia e musica  "));
+
+        assertEquals("Artes e cultura", categoria.getNome());
+        assertEquals("Historia e musica", categoria.getDescricao());
+    }
+
+    @Test
+    void preservaDescricaoAusenteNaResposta() {
+        UUID id = UUID.randomUUID();
+        Instant data = Instant.parse("2026-10-01T12:00:00Z");
+        var categoria = new Categoria(id, "Tecnologia", null, StatusCategoria.PENDENTE, data, data);
+
+        assertEquals(new CategoriaResponseDTO(id, "Tecnologia", null, StatusCategoria.PENDENTE, data, data),
+                mapper.toResponse(categoria));
+    }
+
+    @Test
     void aceitaCadastroSemDescricao() {
         var categoria = mapper.toEntity(new CategoriaCadastroDTO("Tecnologia", null));
 
