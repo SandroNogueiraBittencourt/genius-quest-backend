@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 
 import java.util.UUID;
+import java.util.Locale;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -131,6 +132,41 @@ class VerificacaoEmailIntegrationTest {
         enviar("/api/auth/redefinir-senha", """
                 {"token":"%s","novaSenha":"NovaSenha123!"}
                 """.formatted(recuperacao.getValue())).andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void rejeitaEnderecoOcupadoAntesEDepoisDoPedidoDeTroca() throws Exception {
+        String email = "titular-" + UUID.randomUUID() + "@example.com";
+        String ocupado = "ocupado-" + UUID.randomUUID() + "@example.com";
+        String novo = "disputado-" + UUID.randomUUID() + "@example.com";
+        String senha = "SenhaTeste123!";
+        enviar("/api/usuarios", """
+                {"nome":"Pessoa Teste","email":"%s","senha":"%s"}
+                """.formatted(email, senha)).andExpect(status().isCreated());
+        ArgumentCaptor<String> cadastro = ArgumentCaptor.forClass(String.class);
+        verify(emailService).enviarCodigoVerificacao(eq(email), eq("Pessoa Teste"), cadastro.capture());
+        confirmar(email, cadastro.getValue()).andExpect(status().isNoContent());
+        UUID id = jdbc.queryForObject("SELECT id FROM usuarios WHERE email = ?", UUID.class, email);
+        String token = logar(email, senha);
+
+        enviar("/api/usuarios", """
+                {"nome":"Outra Pessoa","email":"%s","senha":"%s"}
+                """.formatted(ocupado, senha)).andExpect(status().isCreated());
+        alterar(id, token, ocupado.toUpperCase(Locale.ROOT), senha).andExpect(status().isConflict());
+        alterar(id, token, "", senha).andExpect(status().isBadRequest());
+        alterar(id, token, novo, senha).andExpect(status().isOk());
+        ArgumentCaptor<String> troca = ArgumentCaptor.forClass(String.class);
+        verify(emailService).enviarCodigoVerificacao(eq(novo), eq("Pessoa Teste"), troca.capture());
+
+        enviar("/api/usuarios", """
+                {"nome":"Outra Pessoa","email":"%s","senha":"%s"}
+                """.formatted(novo, senha)).andExpect(status().isCreated());
+        mvc.perform(post("/api/auth/confirmar-troca-email").with(this::definirOrigem)
+                .header("Authorization", "Bearer " + token)
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                        {"codigo":"%s"}
+                        """.formatted(troca.getValue()))).andExpect(status().isConflict());
+        logar(email, senha);
     }
 
     @Test
