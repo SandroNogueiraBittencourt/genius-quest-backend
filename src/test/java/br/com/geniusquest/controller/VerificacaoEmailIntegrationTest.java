@@ -22,6 +22,7 @@ import java.util.Locale;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
@@ -197,6 +198,47 @@ class VerificacaoEmailIntegrationTest {
         assertEquals(conta.email(), emailDaConta(conta));
         confirmarTroca(conta, codigoAtual).andExpect(status().isNoContent());
         assertEquals(segundo, emailDaConta(conta));
+    }
+
+    @Test
+    void impedeTrocaDeEmailDeOutraContaMesmoComSenhaCorreta() throws Exception {
+        ContaTeste titular = cadastrarContaVerificada();
+        ContaTeste outraConta = cadastrarContaVerificada();
+        String destino = "destino-" + UUID.randomUUID() + "@example.com";
+
+        alterar(titular.id(), outraConta.token(), destino, SENHA_CONTA_TESTE)
+                .andExpect(status().isForbidden());
+        assertEquals(titular.email(), emailDaConta(titular));
+        assertEquals(0, jdbc.queryForObject(
+                "SELECT count(*) FROM codigos_verificacao_email WHERE usuario_id = ?", Integer.class, titular.id()));
+        verify(emailService, never()).enviarCodigoVerificacao(eq(destino), anyString(), anyString());
+    }
+
+    @Test
+    void exigeAutenticacaoParaSolicitarTrocaDeEmail() throws Exception {
+        ContaTeste conta = cadastrarContaVerificada();
+        String destino = "destino-" + UUID.randomUUID() + "@example.com";
+        mvc.perform(patch("/api/usuarios/{id}", conta.id())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                        {"email":"%s","senhaAtual":"%s"}
+                        """.formatted(destino, SENHA_CONTA_TESTE)))
+                .andExpect(status().isUnauthorized());
+        assertEquals(conta.email(), emailDaConta(conta));
+        verify(emailService, never()).enviarCodigoVerificacao(eq(destino), anyString(), anyString());
+    }
+
+    @Test
+    void codigoDeTrocaSoPodeSerConfirmadoPelaContaQueSolicitou() throws Exception {
+        ContaTeste titular = cadastrarContaVerificada();
+        ContaTeste outraConta = cadastrarContaVerificada();
+        String destino = "destino-" + UUID.randomUUID() + "@example.com";
+        String codigo = solicitarTroca(titular, destino);
+
+        confirmarTroca(outraConta, codigo).andExpect(status().isBadRequest());
+        assertEquals(outraConta.email(), emailDaConta(outraConta));
+        assertEquals(titular.email(), emailDaConta(titular));
+        confirmarTroca(titular, codigo).andExpect(status().isNoContent());
+        assertEquals(destino, emailDaConta(titular));
     }
 
     @Test
