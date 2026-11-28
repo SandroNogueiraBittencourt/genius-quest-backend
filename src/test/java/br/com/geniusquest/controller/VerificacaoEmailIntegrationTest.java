@@ -242,6 +242,34 @@ class VerificacaoEmailIntegrationTest {
     }
 
     @Test
+    void codigoJaUsadoNaoPodeSerReutilizadoComSessaoNova() throws Exception {
+        ContaTeste conta = cadastrarContaVerificada();
+        String destino = "destino-" + UUID.randomUUID() + "@example.com";
+        String codigo = solicitarTroca(conta, destino);
+        confirmarTroca(conta, codigo).andExpect(status().isNoContent());
+
+        ContaTeste novaSessao = new ContaTeste(conta.id(), destino, logar(destino, SENHA_CONTA_TESTE));
+        confirmarTroca(novaSessao, codigo).andExpect(status().isBadRequest());
+        assertEquals(destino, emailDaConta(novaSessao));
+    }
+
+    @Test
+    void aceitaCodigoComEspacoEHifenENormalizaNovoEndereco() throws Exception {
+        ContaTeste conta = cadastrarContaVerificada();
+        String destino = "destino-" + UUID.randomUUID() + "@example.com";
+        alterar(conta.id(), conta.token(), destino.toUpperCase(Locale.ROOT), SENHA_CONTA_TESTE)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.email").value(conta.email()));
+        ArgumentCaptor<String> codigo = ArgumentCaptor.forClass(String.class);
+        verify(emailService).enviarCodigoVerificacao(eq(destino), eq("Pessoa Teste"), codigo.capture());
+        String valor = codigo.getValue();
+        String formatado = valor.substring(0, 3) + " " + valor.substring(3, 6) + "-" + valor.substring(6);
+
+        confirmarTroca(conta, formatado).andExpect(status().isNoContent());
+        assertEquals(destino, emailDaConta(conta));
+    }
+
+    @Test
     void trocaSenhaSomenteDoTitularEInvalidaSessaoERecuperacao() throws Exception {
         String email = "troca-senha-" + UUID.randomUUID() + "@example.com";
         String senhaAtual = "SenhaTeste123!";
