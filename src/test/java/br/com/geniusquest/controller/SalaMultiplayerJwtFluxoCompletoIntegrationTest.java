@@ -1,10 +1,12 @@
 package br.com.geniusquest.controller;
 
+import br.com.geniusquest.security.SessaoCookie;
 import br.com.geniusquest.entity.*;
 import br.com.geniusquest.repository.*;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.json.JsonMapper;
 import jakarta.persistence.EntityManager;
+import jakarta.servlet.http.Cookie;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -352,6 +354,40 @@ class SalaMultiplayerJwtFluxoCompletoIntegrationTest {
         mvc.perform(post(entrada).header(HttpHeaders.AUTHORIZATION, convidadoLogado))
                 .andExpect(status().isOk());
         mvc.perform(post(iniciar).header(HttpHeaders.AUTHORIZATION, anfitriaoLogado))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numero").value(1));
+    }
+
+    @Test
+    void sessaoRestauradaRetomaProximaPerguntaSemAfetarConvidado() throws Exception {
+        String sala = criarSala();
+        mvc.perform(post(sala + "/entrada").header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado)))
+                .andExpect(status().isOk());
+        mvc.perform(put(sala + "/tema").header(HttpHeaders.AUTHORIZATION, bearer(jwtAnfitriao))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(JSON.writeValueAsString(java.util.Map.of("temaId", tema.getId()))))
+                .andExpect(status().isOk());
+        mvc.perform(post(sala + "/partida/iniciar").header(HttpHeaders.AUTHORIZATION, bearer(jwtAnfitriao)))
+                .andExpect(status().isOk());
+        mvc.perform(post(sala + "/partida/respostas").header(HttpHeaders.AUTHORIZATION, bearer(jwtAnfitriao))
+                        .contentType(MediaType.APPLICATION_JSON).content(resposta(1, 2)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.proximaPergunta.numero").value(2));
+
+        String sessao = mvc.perform(post(SessaoCookie.ROTA_RESTAURACAO)
+                        .cookie(new Cookie(SessaoCookie.NOME, jwtAnfitriao))
+                        .contentType(MediaType.APPLICATION_JSON).content("{}"))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+        String restaurado = bearer(parse(sessao).get("token").asText());
+
+        mvc.perform(get(sala + "/partida/pergunta-atual").header(HttpHeaders.AUTHORIZATION, restaurado))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.numero").value(2));
+        mvc.perform(post(sala + "/partida/respostas").header(HttpHeaders.AUTHORIZATION, restaurado)
+                        .contentType(MediaType.APPLICATION_JSON).content(resposta(1, 0)))
+                .andExpect(status().isConflict());
+        mvc.perform(get(sala + "/partida/pergunta-atual").header(HttpHeaders.AUTHORIZATION, bearer(jwtConvidado)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.numero").value(1));
     }
