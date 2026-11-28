@@ -19,6 +19,9 @@ import org.springframework.test.web.servlet.ResultActions;
 
 import java.util.UUID;
 import java.util.Locale;
+import java.util.concurrent.CyclicBarrier;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
@@ -215,6 +218,42 @@ class VerificacaoEmailIntegrationTest {
     }
 
     @Test
+    void apenasUmaContaConfirmaOMesmoEnderecoEmParalelo() throws Exception {
+        ContaTeste primeira = cadastrarContaVerificada();
+        ContaTeste segunda = cadastrarContaVerificada();
+        String destino = "disputa-" + UUID.randomUUID() + "@example.com";
+        alterar(primeira.id(), primeira.token(), destino, SENHA_CONTA_TESTE).andExpect(status().isOk());
+        alterar(segunda.id(), segunda.token(), destino, SENHA_CONTA_TESTE).andExpect(status().isOk());
+        ArgumentCaptor<String> codigos = ArgumentCaptor.forClass(String.class);
+        verify(emailService, times(2)).enviarCodigoVerificacao(eq(destino), eq("Pessoa Teste"), codigos.capture());
+
+        var inicio = new CyclicBarrier(2);
+        var executor = Executors.newFixedThreadPool(2);
+        int statusPrimeira;
+        int statusSegunda;
+        try {
+            var respostaPrimeira = executor.submit(() -> {
+                inicio.await(5, TimeUnit.SECONDS);
+                return confirmarTroca(primeira, codigos.getAllValues().get(0)).andReturn().getResponse().getStatus();
+            });
+            var respostaSegunda = executor.submit(() -> {
+                inicio.await(5, TimeUnit.SECONDS);
+                return confirmarTroca(segunda, codigos.getAllValues().get(1)).andReturn().getResponse().getStatus();
+            });
+            statusPrimeira = respostaPrimeira.get(10, TimeUnit.SECONDS);
+            statusSegunda = respostaSegunda.get(10, TimeUnit.SECONDS);
+        } finally {
+            executor.shutdownNow();
+        }
+        assertEquals(204, Math.min(statusPrimeira, statusSegunda));
+        assertEquals(409, Math.max(statusPrimeira, statusSegunda));
+        ContaTeste vencedora = statusPrimeira == 204 ? primeira : segunda;
+        ContaTeste perdedora = statusPrimeira == 409 ? primeira : segunda;
+        assertEquals(destino, emailDaConta(vencedora));
+        assertEquals(perdedora.email(), emailDaConta(perdedora));
+    }
+
+    @Test
     void exigeAutenticacaoParaSolicitarTrocaDeEmail() throws Exception {
         ContaTeste conta = cadastrarContaVerificada();
         String destino = "destino-" + UUID.randomUUID() + "@example.com";
@@ -266,6 +305,20 @@ class VerificacaoEmailIntegrationTest {
         String formatado = valor.substring(0, 3) + " " + valor.substring(3, 6) + "-" + valor.substring(6);
 
         confirmarTroca(conta, formatado).andExpect(status().isNoContent());
+        assertEquals(destino, emailDaConta(conta));
+    }
+
+    @Test
+    void senhaIncorretaNaoInvalidaCodigoDeTrocaJaEnviado() throws Exception {
+        ContaTeste conta = cadastrarContaVerificada();
+        String destino = "destino-" + UUID.randomUUID() + "@example.com";
+        String outroDestino = "outro-destino-" + UUID.randomUUID() + "@example.com";
+        String codigo = solicitarTroca(conta, destino);
+
+        alterar(conta.id(), conta.token(), outroDestino, "SenhaIncorreta123!")
+                .andExpect(status().isForbidden());
+        verify(emailService, never()).enviarCodigoVerificacao(eq(outroDestino), anyString(), anyString());
+        confirmarTroca(conta, codigo).andExpect(status().isNoContent());
         assertEquals(destino, emailDaConta(conta));
     }
 
