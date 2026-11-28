@@ -35,6 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @ActiveProfiles("test")
 class VerificacaoEmailIntegrationTest {
+    private static final String SENHA_CONTA_TESTE = "SenhaTeste123!";
     private final String origem = "2001:db8::"
             + UUID.randomUUID().toString().substring(24).replaceFirst("(.{4})(.{4})(.{4})", "$1:$2:$3");
 
@@ -170,6 +171,35 @@ class VerificacaoEmailIntegrationTest {
     }
 
     @Test
+    void rejeitaCodigoDeTrocaExpiradoEMantemEmailAtual() throws Exception {
+        ContaTeste conta = cadastrarContaVerificada();
+        String destino = "destino-" + UUID.randomUUID() + "@example.com";
+        String codigo = solicitarTroca(conta, destino);
+        jdbc.update("""
+                UPDATE codigos_verificacao_email SET expira_em = CURRENT_TIMESTAMP - INTERVAL '1 minute'
+                WHERE usuario_id = ?
+                """, conta.id());
+
+        confirmarTroca(conta, codigo).andExpect(status().isBadRequest());
+        assertEquals(conta.email(), emailDaConta(conta));
+        logar(conta.email(), SENHA_CONTA_TESTE);
+    }
+
+    @Test
+    void aceitaSomenteOCodigoDaSolicitacaoMaisRecente() throws Exception {
+        ContaTeste conta = cadastrarContaVerificada();
+        String primeiro = "primeiro-" + UUID.randomUUID() + "@example.com";
+        String segundo = "segundo-" + UUID.randomUUID() + "@example.com";
+        String codigoAnterior = solicitarTroca(conta, primeiro);
+        String codigoAtual = solicitarTroca(conta, segundo);
+
+        confirmarTroca(conta, codigoAnterior).andExpect(status().isBadRequest());
+        assertEquals(conta.email(), emailDaConta(conta));
+        confirmarTroca(conta, codigoAtual).andExpect(status().isNoContent());
+        assertEquals(segundo, emailDaConta(conta));
+    }
+
+    @Test
     void trocaSenhaSomenteDoTitularEInvalidaSessaoERecuperacao() throws Exception {
         String email = "troca-senha-" + UUID.randomUUID() + "@example.com";
         String senhaAtual = "SenhaTeste123!";
@@ -242,6 +272,39 @@ class VerificacaoEmailIntegrationTest {
                 + ".usuarios WHERE id = ?", Boolean.class, id));
         assertEquals("hash-existente", jdbc.queryForObject("SELECT token_hash FROM " + schema
                 + ".token_recuperacao_senha WHERE usuario_id = ?", String.class, id));
+    }
+
+    private record ContaTeste(UUID id, String email, String token) {}
+
+    private ContaTeste cadastrarContaVerificada() throws Exception {
+        String email = "conta-" + UUID.randomUUID() + "@example.com";
+        enviar("/api/usuarios", """
+                {"nome":"Pessoa Teste","email":"%s","senha":"%s"}
+                """.formatted(email, SENHA_CONTA_TESTE)).andExpect(status().isCreated());
+        ArgumentCaptor<String> codigo = ArgumentCaptor.forClass(String.class);
+        verify(emailService).enviarCodigoVerificacao(eq(email), eq("Pessoa Teste"), codigo.capture());
+        confirmar(email, codigo.getValue()).andExpect(status().isNoContent());
+        UUID id = jdbc.queryForObject("SELECT id FROM usuarios WHERE email = ?", UUID.class, email);
+        return new ContaTeste(id, email, logar(email, SENHA_CONTA_TESTE));
+    }
+
+    private String solicitarTroca(ContaTeste conta, String destino) throws Exception {
+        alterar(conta.id(), conta.token(), destino, SENHA_CONTA_TESTE).andExpect(status().isOk());
+        ArgumentCaptor<String> codigo = ArgumentCaptor.forClass(String.class);
+        verify(emailService).enviarCodigoVerificacao(eq(destino), eq("Pessoa Teste"), codigo.capture());
+        return codigo.getValue();
+    }
+
+    private ResultActions confirmarTroca(ContaTeste conta, String codigo) throws Exception {
+        return mvc.perform(post("/api/auth/confirmar-troca-email").with(this::definirOrigem)
+                .header("Authorization", "Bearer " + conta.token())
+                .contentType(MediaType.APPLICATION_JSON).content("""
+                        {"codigo":"%s"}
+                        """.formatted(codigo)));
+    }
+
+    private String emailDaConta(ContaTeste conta) {
+        return jdbc.queryForObject("SELECT email FROM usuarios WHERE id = ?", String.class, conta.id());
     }
 
     private String logar(String email, String senha) throws Exception {
