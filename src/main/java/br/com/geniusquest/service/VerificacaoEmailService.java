@@ -5,6 +5,8 @@ import br.com.geniusquest.exception.EmailJaCadastradoException;
 import br.com.geniusquest.repository.TokenRecuperacaoSenhaRepository;
 import br.com.geniusquest.exception.RegraTemasException;
 import br.com.geniusquest.repository.UsuarioRepository;
+import org.hibernate.exception.ConstraintViolationException;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -114,6 +116,15 @@ public class VerificacaoEmailService {
         recuperacao.invalidarTokensAbertos(usuario.getId());
         usuario.setEmail(novoEmail);
         usuario.incrementarVersaoCredenciais();
+        try {
+            usuarios.flush();
+        } catch (DataIntegrityViolationException erro) {
+            if (erro.getCause() instanceof ConstraintViolationException restricao
+                    && "usuarios_email_key".equals(restricao.getConstraintName())) {
+                throw new EmailJaCadastradoException();
+            }
+            throw erro;
+        }
     }
 
     private RegraTemasException codigoInvalido() {
